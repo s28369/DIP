@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane fx:id="mainPane" 
+            xmlns="http://javafx.com/javafx/21" 
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.fleetmanagement.controller.MainController">
+    
+    <!-- Górny pasek -->
+    <top>
+        <VBox style="-fx-background-color: #34495e; -fx-padding: 15;">
+            <HBox alignment="CENTER_LEFT" spacing="20">
+                <Label fx:id="welcomeLabel" 
+                       text="Witaj, Użytkowniku"
+                       style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;"/>
+                <Label fx:id="roleLabel" 
+                       text="Rola: Administrator"
+                       style="-fx-text-fill: #ecf0f1; -fx-font-size: 14px;"/>
+            </HBox>
+        </VBox>
+    </top>
+    
+    <!-- Lewe menu -->
+    <left>
+        <VBox spacing="10" 
+              style="-fx-background-color: #2c3e50; -fx-padding: 15;">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            
+            <Label text="Menu" 
+                   style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;">
+                <padding>
+                    <Insets bottom="10"/>
+                </padding>
+            </Label>
+            
+            <Button text="Zarządzanie Flotą" 
+                    onAction="#showTruckManagement"
+                    prefWidth="180"
+                    style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 13px;">
+                <font>
+                    <Font name="System Bold" size="13"/>
+                </font>
+            </Button>
+            
+            <Button text="Zarządzanie Dokumentami" 
+                    onAction="#showDocumentManagement"
+                    prefWidth="180"
+                    style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 13px;">
+                <font>
+                    <Font name="System Bold" size="13"/>
+                </font>
+            </Button>
+            
+            <Button text="Kierowcy" 
+                    onAction="#showDriverManagement"
+                    prefWidth="180"
+                    style="-fx-background-color: #1abc9c; -fx-text-fill: white; -fx-font-size: 13px;">
+                <font>
+                    <Font name="System Bold" size="13"/>
+                </font>
+            </Button>
+            
+            <Button text="Aktywne Rejsy" 
+                    onAction="#showTripManagement"
+                    prefWidth="180"
+                    style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-size: 13px;">
+                <font>
+                    <Font name="System Bold" size="13"/>
+                </font>
+            </Button>
+            
+            <!-- Panel Administratora - widoczny tylko dla adminów -->
+            <Button fx:id="adminButton"
+                    text="Panel Administratora" 
+                    onAction="#showUserManagement"
+                    prefWidth="180"
+                    style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-size: 13px;">
+                <font>
+                    <Font name="System Bold" size="13"/>
+                </font>
+            </Button>
+            
+            <!-- Separator -->
+            <VBox prefHeight="20"/>
+            
+            <Button text="Wyloguj" 
+                    onAction="#handleLogout"
+                    prefWidth="180"
+                    style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 13px;">
+                <font>
+                    <Font name="System Bold" size="13"/>
+                </font>
+            </Button>
+        </VBox>
+    </left>
+    
+    <!-- Główna obszar treści -->
+    <center>
+        <StackPane fx:id="contentArea" 
+                   style="-fx-background-color: white;">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+        </StackPane>
+    </center>
+    
+</BorderPane>
