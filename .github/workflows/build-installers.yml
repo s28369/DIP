@@ -1,0 +1,99 @@
+name: Build Installers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Windows Installer (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build fat JAR
+        run: mvn clean package -DskipTests -q
+
+      - name: Prepare JavaFX modules & input
+        shell: cmd
+        run: |
+          set M2=%USERPROFILE%\.m2\repository\org\openjfx
+          set FX=21.0.1
+          mkdir target\fx-mods
+          mkdir target\app-input
+          copy "%M2%\javafx-base\%FX%\javafx-base-%FX%-win.jar"       target\fx-mods\
+          copy "%M2%\javafx-graphics\%FX%\javafx-graphics-%FX%-win.jar" target\fx-mods\
+          copy "%M2%\javafx-controls\%FX%\javafx-controls-%FX%-win.jar" target\fx-mods\
+          copy "%M2%\javafx-fxml\%FX%\javafx-fxml-%FX%-win.jar"         target\fx-mods\
+          copy target\fleet-management-1.0-SNAPSHOT.jar target\app-input\
+
+      - name: Create .exe installer with jpackage
+        shell: cmd
+        run: |
+          jpackage ^
+            --input target\app-input ^
+            --name FleetManagement ^
+            --main-jar fleet-management-1.0-SNAPSHOT.jar ^
+            --type exe ^
+            --module-path target\fx-mods ^
+            --add-modules javafx.controls,javafx.fxml,java.sql,java.naming,java.management,java.instrument,java.desktop,java.xml,jdk.unsupported ^
+            --app-version 1.0 ^
+            --win-shortcut ^
+            --win-menu ^
+            --dest dist
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: FleetManagement-Windows
+          path: dist/*.exe
+
+  build-macos:
+    name: macOS Installer (.dmg)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build fat JAR
+        run: mvn clean package -DskipTests -q
+
+      - name: Prepare JavaFX modules & input
+        run: |
+          M2="$HOME/.m2/repository/org/openjfx"
+          FX="21.0.1"
+          C="mac-aarch64"
+          mkdir -p target/fx-mods target/app-input
+          cp "$M2/javafx-base/$FX/javafx-base-$FX-$C.jar"       target/fx-mods/
+          cp "$M2/javafx-graphics/$FX/javafx-graphics-$FX-$C.jar" target/fx-mods/
+          cp "$M2/javafx-controls/$FX/javafx-controls-$FX-$C.jar" target/fx-mods/
+          cp "$M2/javafx-fxml/$FX/javafx-fxml-$FX-$C.jar"         target/fx-mods/
+          cp target/fleet-management-1.0-SNAPSHOT.jar target/app-input/
+
+      - name: Create .dmg installer with jpackage
+        run: |
+          jpackage \
+            --input target/app-input \
+            --name FleetManagement \
+            --main-jar fleet-management-1.0-SNAPSHOT.jar \
+            --type dmg \
+            --module-path target/fx-mods \
+            --add-modules javafx.controls,javafx.fxml,java.sql,java.naming,java.management,java.instrument,java.desktop,java.xml,jdk.unsupported \
+            --app-version 1.0 \
+            --dest dist
+
+      - name: Upload macOS installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: FleetManagement-macOS
+          path: dist/*.dmg
