@@ -21,7 +21,7 @@ public class TripAttachment {
     private String description;
     
     @Lob
-    @Column(name = "file_data", nullable = false)
+    @Column(name = "file_data", nullable = false, columnDefinition = "LONGBLOB")
     private byte[] fileData;
     
     @Column(name = "file_size")

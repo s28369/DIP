@@ -4,13 +4,13 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * Testy jednostkowe dla głównej klasy aplikacji
+ * Testy jednostkowe dla kontekstu Spring (serwisy, repozytoria).
+ * Używa TestConfig bez kontrolerów JavaFX, aby testy działały bez uruchomionego JavaFX.
  */
-@SpringBootTest
+@SpringBootTest(classes = TestConfig.class)
 class FleetManagementApplicationTests {
 
     @Test
     void contextLoads() {
-
     }
 }
