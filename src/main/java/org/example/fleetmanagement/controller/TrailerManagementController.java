@@ -1,0 +1,479 @@
+package org.example.fleetmanagement.controller;
+
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.geometry.Insets;
+import javafx.scene.Parent;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import org.example.fleetmanagement.model.Trailer;
+import org.example.fleetmanagement.model.TrailerNote;
+import org.example.fleetmanagement.service.TrailerService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.time.format.DateTimeFormatter;
+
+@Component
+public class TrailerManagementController {
+
+    private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    private final TrailerService trailerService;
+    private final ObservableList<Trailer> trailerList = FXCollections.observableArrayList();
+    private FilteredList<Trailer> filteredList;
+    private VBox view;
+    private TableView<Trailer> tableView;
+
+    @Autowired
+    public TrailerManagementController(TrailerService trailerService) {
+        this.trailerService = trailerService;
+        initializeView();
+    }
+
+    private ComboBox<String> createEditableComboBox(String... items) {
+        ComboBox<String> combo = new ComboBox<>();
+        combo.getItems().addAll(items);
+        combo.setEditable(true);
+        combo.setPrefWidth(300);
+        return combo;
+    }
+
+    private void initializeView() {
+        view = new VBox(10);
+        view.setPadding(new Insets(15));
+
+        Label titleLabel = new Label("Управление прицепами");
+        titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
+
+        Button addButton = new Button("Добавить прицеп");
+        addButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        addButton.setOnAction(e -> showAddDialog());
+
+        Button editButton = new Button("Редактировать");
+        editButton.setOnAction(e -> showEditDialog());
+
+        Button notesButton = new Button("Заметки");
+        notesButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+        notesButton.setOnAction(e -> showNotesDialog());
+
+        Button deleteButton = new Button("Удалить прицеп");
+        deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
+        deleteButton.setOnAction(e -> handleDelete());
+
+        Button refreshButton = new Button("Обновить");
+        refreshButton.setOnAction(e -> refreshData());
+
+        HBox buttonBox = new HBox(10, addButton, editButton, notesButton, deleteButton, refreshButton);
+
+        TextField searchField = new TextField();
+        searchField.setPromptText("Введите текст для поиска...");
+        searchField.setPrefWidth(250);
+
+        ComboBox<String> searchParam = new ComboBox<>();
+        searchParam.getItems().addAll("Все", "Номер", "Марка", "Страна", "Статус", "Местоположение");
+        searchParam.setValue("Все");
+
+        filteredList = new FilteredList<>(trailerList, p -> true);
+
+        Runnable applyFilter = () -> {
+            String text = searchField.getText();
+            String param = searchParam.getValue();
+            if (text == null || text.trim().isEmpty()) {
+                filteredList.setPredicate(p -> true);
+                return;
+            }
+            String lower = text.trim().toLowerCase();
+            filteredList.setPredicate(t -> switch (param) {
+                case "Номер" -> contains(t.getRegistrationNumber(), lower);
+                case "Марка" -> contains(t.getBrand(), lower);
+                case "Страна" -> contains(t.getRegistrationCountry(), lower);
+                case "Статус" -> contains(t.getStatus(), lower);
+                case "Местоположение" -> contains(t.getCurrentLocation(), lower);
+                default -> contains(t.getRegistrationNumber(), lower)
+                        || contains(t.getBrand(), lower)
+                        || contains(t.getRegistrationCountry(), lower)
+                        || contains(t.getStatus(), lower)
+                        || contains(t.getCurrentLocation(), lower);
+            });
+        };
+        searchField.textProperty().addListener((obs, o, n) -> applyFilter.run());
+        searchParam.valueProperty().addListener((obs, o, n) -> applyFilter.run());
+
+        HBox searchBox = new HBox(10, new Label("Поиск:"), searchField, searchParam);
+        searchBox.setPadding(new Insets(0, 0, 5, 0));
+
+        tableView = new TableView<>();
+        tableView.setItems(filteredList);
+
+        TableColumn<Trailer, String> regCol = new TableColumn<>("Номер");
+        regCol.setCellValueFactory(new PropertyValueFactory<>("registrationNumber"));
+        regCol.setPrefWidth(150);
+
+        TableColumn<Trailer, String> brandCol = new TableColumn<>("Марка");
+        brandCol.setCellValueFactory(new PropertyValueFactory<>("brand"));
+        brandCol.setPrefWidth(160);
+
+        TableColumn<Trailer, String> countryCol = new TableColumn<>("Страна регистрации");
+        countryCol.setCellValueFactory(new PropertyValueFactory<>("registrationCountry"));
+        countryCol.setPrefWidth(150);
+
+        TableColumn<Trailer, String> statusCol = new TableColumn<>("Статус");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setPrefWidth(120);
+
+        TableColumn<Trailer, String> locationCol = new TableColumn<>("Местоположение");
+        locationCol.setCellValueFactory(new PropertyValueFactory<>("currentLocation"));
+        locationCol.setPrefWidth(180);
+
+        TableColumn<Trailer, String> notesCol = new TableColumn<>("Заметки");
+        notesCol.setCellValueFactory(cellData -> {
+            int count = cellData.getValue().getNoteCount();
+            return new SimpleStringProperty(count > 0 ? count + " шт." : "—");
+        });
+        notesCol.setPrefWidth(80);
+
+        tableView.getColumns().addAll(regCol, brandCol, countryCol, statusCol, locationCol, notesCol);
+
+        view.getChildren().addAll(titleLabel, buttonBox, searchBox, tableView);
+        VBox.setVgrow(tableView, Priority.ALWAYS);
+    }
+
+    public Parent getView() {
+        return view;
+    }
+
+    public void refreshData() {
+        trailerList.clear();
+        trailerList.addAll(trailerService.getAllTrailers());
+    }
+
+    // ---- Add ----
+
+    private void showAddDialog() {
+        Dialog<Trailer> dialog = new Dialog<>();
+        dialog.setTitle("Добавить прицеп");
+        dialog.setHeaderText("Введите данные нового прицепа");
+
+        ButtonType addButtonType = new ButtonType("Добавить", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
+
+        TextField regField = new TextField();
+        regField.setPromptText("Номер (напр. PO12345)");
+
+        TextField brandField = new TextField();
+        brandField.setPromptText("Марка (напр. Schmitz Cargobull)");
+
+        ComboBox<String> countryCombo = createEditableComboBox(
+                "Польша", "Беларусь", "Чехия", "РФ");
+
+        ComboBox<String> statusCombo = createEditableComboBox(
+                Trailer.STATUS_AVAILABLE, Trailer.STATUS_ON_TRIP, Trailer.STATUS_MAINTENANCE);
+        statusCombo.setValue(Trailer.STATUS_AVAILABLE);
+
+        TextField locationField = new TextField();
+        locationField.setPromptText("напр. Варшава, база");
+
+        VBox content = new VBox(10,
+            new Label("Номер:"), regField,
+            new Label("Марка:"), brandField,
+            new Label("Страна регистрации:"), countryCombo,
+            new Label("Статус:"), statusCombo,
+            new Label("Местоположение:"), locationField
+        );
+        content.setPadding(new Insets(10));
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(420);
+
+        final Button addBtn = (Button) dialog.getDialogPane().lookupButton(addButtonType);
+        addBtn.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            if (regField.getText().trim().isEmpty()) {
+                showAlert("Ошибка", "Номер не может быть пустым", Alert.AlertType.ERROR);
+                event.consume();
+                return;
+            }
+            if (brandField.getText().trim().isEmpty()) {
+                showAlert("Ошибка", "Марка не может быть пустой", Alert.AlertType.ERROR);
+                event.consume();
+            }
+        });
+
+        dialog.setResultConverter(btn -> {
+            if (btn == addButtonType) {
+                Trailer t = new Trailer();
+                t.setRegistrationNumber(regField.getText().trim());
+                t.setBrand(brandField.getText().trim());
+                String country = countryCombo.getEditor().getText();
+                t.setRegistrationCountry(country != null ? country.trim() : "");
+                String status = statusCombo.getEditor().getText();
+                t.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Trailer.STATUS_AVAILABLE);
+                t.setCurrentLocation(locationField.getText().trim());
+                return t;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(trailer -> {
+            try {
+                trailerService.addTrailer(trailer);
+                refreshData();
+                showAlert("Успех", "Прицеп добавлен", Alert.AlertType.INFORMATION);
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось добавить прицеп: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
+    // ---- Edit ----
+
+    private void showEditDialog() {
+        Trailer selected = tableView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Ошибка", "Выберите прицеп для редактирования", Alert.AlertType.WARNING);
+            return;
+        }
+
+        Dialog<Trailer> dialog = new Dialog<>();
+        dialog.setTitle("Редактировать прицеп");
+        dialog.setHeaderText("Прицеп: " + selected.getRegistrationNumber());
+
+        ButtonType saveButtonType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        TextField regField = new TextField(selected.getRegistrationNumber());
+        TextField brandField = new TextField(selected.getBrand());
+
+        ComboBox<String> countryCombo = createEditableComboBox(
+                "Польша", "Беларусь", "Чехия", "РФ");
+        if (selected.getRegistrationCountry() != null) {
+            countryCombo.setValue(selected.getRegistrationCountry());
+        }
+
+        ComboBox<String> statusCombo = createEditableComboBox(
+                Trailer.STATUS_AVAILABLE, Trailer.STATUS_ON_TRIP, Trailer.STATUS_MAINTENANCE);
+        statusCombo.setValue(selected.getStatus());
+
+        TextField locationField = new TextField(
+                selected.getCurrentLocation() != null ? selected.getCurrentLocation() : "");
+
+        VBox content = new VBox(10,
+            new Label("Номер:"), regField,
+            new Label("Марка:"), brandField,
+            new Label("Страна регистрации:"), countryCombo,
+            new Label("Статус:"), statusCombo,
+            new Label("Местоположение:"), locationField
+        );
+        content.setPadding(new Insets(10));
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(420);
+
+        dialog.setResultConverter(btn -> {
+            if (btn == saveButtonType) {
+                selected.setRegistrationNumber(regField.getText().trim());
+                selected.setBrand(brandField.getText().trim());
+                String country = countryCombo.getEditor().getText();
+                selected.setRegistrationCountry(country != null ? country.trim() : "");
+                String status = statusCombo.getEditor().getText();
+                selected.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Trailer.STATUS_AVAILABLE);
+                selected.setCurrentLocation(locationField.getText().trim());
+                return selected;
+            }
+            return null;
+        });
+
+        dialog.showAndWait().ifPresent(trailer -> {
+            try {
+                trailerService.updateTrailer(trailer);
+                refreshData();
+                showAlert("Успех", "Данные прицепа обновлены", Alert.AlertType.INFORMATION);
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось обновить прицеп: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
+    // ---- Delete ----
+
+    private void handleDelete() {
+        Trailer selected = tableView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Ошибка", "Выберите прицеп для удаления", Alert.AlertType.WARNING);
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Подтверждение");
+        confirm.setHeaderText("Вы уверены, что хотите удалить этот прицеп?");
+        confirm.setContentText("Номер: " + selected.getRegistrationNumber() +
+            "\nМарка: " + selected.getBrand());
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    trailerService.deleteTrailer(selected.getId());
+                    refreshData();
+                    showAlert("Успех", "Прицеп удалён", Alert.AlertType.INFORMATION);
+                } catch (Exception e) {
+                    showAlert("Ошибка", "Не удалось удалить прицеп: " + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
+    }
+
+    // ---- Notes dialog ----
+
+    private void showNotesDialog() {
+        Trailer selected = tableView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Ошибка", "Выберите прицеп для просмотра заметок", Alert.AlertType.WARNING);
+            return;
+        }
+
+        ObservableList<TrailerNote> noteList = FXCollections.observableArrayList();
+        noteList.addAll(trailerService.getNotesByTrailer(selected.getId()));
+
+        TableView<TrailerNote> noteTable = new TableView<>();
+        noteTable.setItems(noteList);
+
+        TableColumn<TrailerNote, Long> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        idCol.setPrefWidth(50);
+
+        TableColumn<TrailerNote, String> contentCol = new TableColumn<>("Текст заметки");
+        contentCol.setCellValueFactory(new PropertyValueFactory<>("content"));
+        contentCol.setPrefWidth(350);
+
+        TableColumn<TrailerNote, String> dateCol = new TableColumn<>("Дата создания");
+        dateCol.setCellValueFactory(cellData -> {
+            if (cellData.getValue().getCreatedAt() != null) {
+                return new SimpleStringProperty(cellData.getValue().getCreatedAt().format(DT_FMT));
+            }
+            return new SimpleStringProperty("—");
+        });
+        dateCol.setPrefWidth(140);
+
+        noteTable.getColumns().addAll(idCol, contentCol, dateCol);
+
+        Button addNoteBtn = new Button("Добавить заметку");
+        addNoteBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        addNoteBtn.setOnAction(e -> addNote(selected, noteList));
+
+        Button editNoteBtn = new Button("Редактировать");
+        editNoteBtn.setOnAction(e -> {
+            TrailerNote sel = noteTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                editNote(sel, noteList, selected);
+            } else {
+                showAlert("Ошибка", "Выберите заметку для редактирования", Alert.AlertType.WARNING);
+            }
+        });
+
+        Button deleteNoteBtn = new Button("Удалить");
+        deleteNoteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
+        deleteNoteBtn.setOnAction(e -> {
+            TrailerNote sel = noteTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                deleteNote(sel, noteList, selected);
+            } else {
+                showAlert("Ошибка", "Выберите заметку для удаления", Alert.AlertType.WARNING);
+            }
+        });
+
+        HBox noteBtnBox = new HBox(10, addNoteBtn, editNoteBtn, deleteNoteBtn);
+        noteBtnBox.setPadding(new Insets(10, 0, 0, 0));
+
+        VBox content = new VBox(10,
+            new Label("Заметки прицепа: " + selected.getRegistrationNumber() + " (" + selected.getBrand() + ")"),
+            noteTable,
+            noteBtnBox
+        );
+        content.setPadding(new Insets(15));
+        VBox.setVgrow(noteTable, Priority.ALWAYS);
+
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Заметки прицепа");
+        dialog.setHeaderText(null);
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.getDialogPane().setPrefWidth(600);
+        dialog.getDialogPane().setPrefHeight(450);
+        dialog.showAndWait();
+
+        refreshData();
+    }
+
+    private void addNote(Trailer trailer, ObservableList<TrailerNote> noteList) {
+        TextInputDialog dlg = new TextInputDialog();
+        dlg.setTitle("Новая заметка");
+        dlg.setHeaderText("Введите текст заметки");
+        dlg.setContentText("Заметка:");
+        dlg.getEditor().setPrefWidth(350);
+
+        dlg.showAndWait().ifPresent(text -> {
+            if (!text.trim().isEmpty()) {
+                try {
+                    TrailerNote note = new TrailerNote(text.trim(), trailer);
+                    trailerService.addNote(note);
+                    noteList.setAll(trailerService.getNotesByTrailer(trailer.getId()));
+                } catch (Exception e) {
+                    showAlert("Ошибка", "Не удалось добавить заметку: " + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
+    }
+
+    private void editNote(TrailerNote note, ObservableList<TrailerNote> noteList, Trailer trailer) {
+        TextInputDialog dlg = new TextInputDialog(note.getContent());
+        dlg.setTitle("Редактировать заметку");
+        dlg.setHeaderText("Измените текст заметки");
+        dlg.setContentText("Заметка:");
+        dlg.getEditor().setPrefWidth(350);
+
+        dlg.showAndWait().ifPresent(text -> {
+            if (!text.trim().isEmpty()) {
+                try {
+                    note.setContent(text.trim());
+                    trailerService.updateNote(note);
+                    noteList.setAll(trailerService.getNotesByTrailer(trailer.getId()));
+                } catch (Exception e) {
+                    showAlert("Ошибка", "Не удалось обновить заметку: " + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
+    }
+
+    private void deleteNote(TrailerNote note, ObservableList<TrailerNote> noteList, Trailer trailer) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Подтверждение");
+        confirm.setHeaderText("Удалить эту заметку?");
+        confirm.setContentText(note.getContent());
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    trailerService.deleteNote(note.getId());
+                    noteList.setAll(trailerService.getNotesByTrailer(trailer.getId()));
+                } catch (Exception e) {
+                    showAlert("Ошибка", "Не удалось удалить заметку: " + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
+    }
+
+    private static boolean contains(String value, String search) {
+        return value != null && value.toLowerCase().contains(search);
+    }
+
+    private void showAlert(String title, String content, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+}

@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Serwis obsługujący operacje na dokumentach
+ * Сервис для операций с документами
  */
 @Service
 @Transactional
@@ -26,60 +26,60 @@ public class DocumentService {
     }
     
     /**
-     * Zwraca wszystkie dokumenty
-     * @return lista wszystkich dokumentów
+     * Возвращает все документы
+     * @return список всех документов
      */
     public List<Document> getAllDocuments() {
         return documentRepository.findAll();
     }
     
     /**
-     * Wyszukuje dokument po ID
-     * @param id identyfikator dokumentu
-     * @return Optional z dokumentem jeśli istnieje
+     * Ищет документ по ID
+     * @param id идентификатор документа
+     * @return Optional с документом, если существует
      */
     public Optional<Document> getDocumentById(Long id) {
         return documentRepository.findById(id);
     }
     
     /**
-     * Zwraca wszystkie dokumenty przypisane do ciężarówki
-     * @param truck ciężarówka
-     * @return lista dokumentów
+     * Возвращает все документы, привязанные к грузовику
+     * @param truck грузовик
+     * @return список документов
      */
     public List<Document> getDocumentsByTruck(Truck truck) {
         return documentRepository.findByTruck(truck);
     }
     
     /**
-     * Dodaje nowy dokument do systemu
-     * @param document dokument do dodania
-     * @return zapisany dokument
+     * Добавляет новый документ в систему
+     * @param document документ для добавления
+     * @return сохранённый документ
      */
     public Document addDocument(Document document) {
         return documentRepository.save(document);
     }
     
     /**
-     * Aktualizuje dane dokumentu
-     * @param document dokument z zaktualizowanymi danymi
-     * @return zaktualizowany dokument
+     * Обновляет данные документа
+     * @param document документ с обновлёнными данными
+     * @return обновлённый документ
      */
     public Document updateDocument(Document document) {
         return documentRepository.save(document);
     }
     
     /**
-     * Usuwa dokument z systemu
-     * @param id identyfikator dokumentu do usunięcia
+     * Удаляет документ из системы
+     * @param id идентификатор документа для удаления
      */
     public void deleteDocument(Long id) {
         documentRepository.deleteById(id);
     }
     
     /**
-     * Zwraca dokumenty wygasające w ciągu najbliższych 30 dni
-     * @return lista wygasających dokumentów
+     * Возвращает документы, истекающие в течение ближайших 30 дней
+     * @return список истекающих документов
      */
     public List<Document> getExpiringDocuments() {
         LocalDate now = LocalDate.now();
@@ -88,8 +88,8 @@ public class DocumentService {
     }
     
     /**
-     * Zwraca przeterminowane dokumenty
-     * @return lista przeterminowanych dokumentów
+     * Возвращает просроченные документы
+     * @return список просроченных документов
      */
     public List<Document> getExpiredDocuments() {
         return documentRepository.findByExpiryDateBefore(LocalDate.now());

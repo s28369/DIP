@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Repozytorium do obsługi operacji na dokumentach kierowców
+ * Репозиторий для операций с документами водителей
  */
 @Repository
 public interface DriverDocumentRepository extends JpaRepository<DriverDocument, Long> {

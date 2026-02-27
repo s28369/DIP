@@ -21,14 +21,14 @@
     </padding>
     
     <!-- Nagłówek -->
-    <Label text="System Zarządzania Flotą" 
+    <Label text="Система управления автопарком" 
            style="-fx-text-fill: #2c3e50;">
         <font>
             <Font name="System Bold" size="24"/>
         </font>
     </Label>
     
-    <Label text="Logowanie" 
+    <Label text="Авторизация" 
            style="-fx-text-fill: #34495e;">
         <font>
             <Font size="16"/>
@@ -37,34 +37,34 @@
     
     <!-- Pole nazwy użytkownika -->
     <VBox spacing="5">
-        <Label text="Nazwa użytkownika:" 
+        <Label text="Имя пользователя:" 
                style="-fx-text-fill: #2c3e50;">
             <font>
                 <Font size="12"/>
             </font>
         </Label>
         <TextField fx:id="usernameField" 
-                   promptText="Wprowadź nazwę użytkownika"
+                   promptText="Введите имя пользователя"
                    prefWidth="300"
                    style="-fx-background-radius: 5; -fx-border-radius: 5;"/>
     </VBox>
     
     <!-- Pole hasła -->
     <VBox spacing="5">
-        <Label text="Hasło:" 
+        <Label text="Пароль:" 
                style="-fx-text-fill: #2c3e50;">
             <font>
                 <Font size="12"/>
             </font>
         </Label>
         <PasswordField fx:id="passwordField" 
-                       promptText="Wprowadź hasło"
+                       promptText="Введите пароль"
                        prefWidth="300"
                        style="-fx-background-radius: 5; -fx-border-radius: 5;"/>
     </VBox>
     
     <!-- Przycisk logowania -->
-    <Button text="Zaloguj" 
+    <Button text="Войти" 
             onAction="#handleLogin"
             prefWidth="300"
             style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 5;">
@@ -75,19 +75,19 @@
     
     <!-- Informacje testowe -->
     <VBox spacing="5" style="-fx-background-color: #ecf0f1; -fx-padding: 10; -fx-background-radius: 5;">
-        <Label text="Dane testowe:" 
+        <Label text="Тестовые данные:" 
                style="-fx-text-fill: #7f8c8d; -fx-font-weight: bold;">
             <font>
                 <Font size="11"/>
             </font>
         </Label>
-        <Label text="Administrator: admin / admin123" 
+        <Label text="Администратор: admin / admin123" 
                style="-fx-text-fill: #7f8c8d;">
             <font>
                 <Font size="10"/>
             </font>
         </Label>
-        <Label text="Logistyk: logistyk / logistyk123" 
+        <Label text="Логист: logistyk / logistyk123" 
                style="-fx-text-fill: #7f8c8d;">
             <font>
                 <Font size="10"/>

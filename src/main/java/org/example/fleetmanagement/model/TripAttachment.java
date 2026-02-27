@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * Klasa reprezentująca załącznik PDF przypisany do rejsu
+ * Класс, представляющий вложение PDF, привязанное к рейсу
  */
 @Entity
 @Table(name = "trip_attachment")
@@ -109,7 +109,7 @@ public class TripAttachment {
     }
     
     /**
-     * Zwraca rozmiar pliku w czytelnym formacie
+     * Возвращает размер файла в удобочитаемом формате
      */
     public String getFileSizeFormatted() {
         if (fileSize == null) return "0 B";

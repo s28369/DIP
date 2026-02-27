@@ -10,30 +10,30 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Repozytorium do obsługi operacji na encji Document
+ * Репозиторий для операций с сущностью Document
  */
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, Long> {
     
     /**
-     * Wyszukuje wszystkie dokumenty przypisane do danej ciężarówki
-     * @param truck ciężarówka
-     * @return lista dokumentów
+     * Ищет все документы, привязанные к указанному грузовику
+     * @param truck грузовик
+     * @return список документов
      */
     List<Document> findByTruck(Truck truck);
     
     /**
-     * Wyszukuje dokumenty wygasające przed określoną datą
-     * @param date data graniczna
-     * @return lista wygasających dokumentów
+     * Ищет документы, срок действия которых истекает до указанной даты
+     * @param date граничная дата
+     * @return список истекающих документов
      */
     List<Document> findByExpiryDateBefore(LocalDate date);
     
     /**
-     * Wyszukuje dokumenty wygasające w określonym przedziale czasowym
-     * @param startDate data początkowa
-     * @param endDate data końcowa
-     * @return lista dokumentów
+     * Ищет документы, срок действия которых истекает в указанном временном интервале
+     * @param startDate начальная дата
+     * @param endDate конечная дата
+     * @return список документов
      */
     @Query("SELECT d FROM Document d WHERE d.expiryDate BETWEEN :startDate AND :endDate")
     List<Document> findExpiringDocuments(LocalDate startDate, LocalDate endDate);

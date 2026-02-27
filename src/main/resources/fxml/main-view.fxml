@@ -19,10 +19,10 @@
         <VBox style="-fx-background-color: #34495e; -fx-padding: 15;">
             <HBox alignment="CENTER_LEFT" spacing="20">
                 <Label fx:id="welcomeLabel" 
-                       text="Witaj, Użytkowniku"
+                       text="Добро пожаловать"
                        style="-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;"/>
                 <Label fx:id="roleLabel" 
-                       text="Rola: Administrator"
+                       text="Роль: Администратор"
                        style="-fx-text-fill: #ecf0f1; -fx-font-size: 14px;"/>
             </HBox>
         </VBox>
@@ -36,14 +36,14 @@
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
             
-            <Label text="Menu" 
+            <Label text="Меню" 
                    style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;">
                 <padding>
                     <Insets bottom="10"/>
                 </padding>
             </Label>
             
-            <Button text="Zarządzanie Flotą" 
+            <Button text="Управление автопарком" 
                     onAction="#showTruckManagement"
                     prefWidth="180"
                     style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 13px;">
@@ -52,7 +52,16 @@
                 </font>
             </Button>
             
-            <Button text="Zarządzanie Dokumentami" 
+            <Button text="Прицепы" 
+                    onAction="#showTrailerManagement"
+                    prefWidth="180"
+                    style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-size: 13px;">
+                <font>
+                    <Font name="System Bold" size="13"/>
+                </font>
+            </Button>
+            
+            <Button text="Управление документами" 
                     onAction="#showDocumentManagement"
                     prefWidth="180"
                     style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 13px;">
@@ -61,7 +70,7 @@
                 </font>
             </Button>
             
-            <Button text="Kierowcy" 
+            <Button text="Водители" 
                     onAction="#showDriverManagement"
                     prefWidth="180"
                     style="-fx-background-color: #1abc9c; -fx-text-fill: white; -fx-font-size: 13px;">
@@ -70,7 +79,7 @@
                 </font>
             </Button>
             
-            <Button text="Aktywne Rejsy" 
+            <Button text="Активные рейсы" 
                     onAction="#showTripManagement"
                     prefWidth="180"
                     style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-size: 13px;">
@@ -81,7 +90,7 @@
             
             <!-- Panel Administratora - widoczny tylko dla adminów -->
             <Button fx:id="adminButton"
-                    text="Panel Administratora" 
+                    text="Панель администратора" 
                     onAction="#showUserManagement"
                     prefWidth="180"
                     style="-fx-background-color: #9b59b6; -fx-text-fill: white; -fx-font-size: 13px;">
@@ -93,7 +102,7 @@
             <!-- Separator -->
             <VBox prefHeight="20"/>
             
-            <Button text="Wyloguj" 
+            <Button text="Выйти" 
                     onAction="#handleLogout"
                     prefWidth="180"
                     style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 13px;">

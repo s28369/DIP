@@ -7,21 +7,21 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * Repozytorium do obsługi operacji na załącznikach rejsów
+ * Репозиторий для операций с вложениями рейсов
  */
 @Repository
 public interface TripAttachmentRepository extends JpaRepository<TripAttachment, Long> {
     
     /**
-     * Wyszukuje załączniki przypisane do rejsu
-     * @param tripId identyfikator rejsu
-     * @return lista załączników
+     * Ищет вложения, привязанные к рейсу
+     * @param tripId идентификатор рейса
+     * @return список вложений
      */
     List<TripAttachment> findByTripId(Long tripId);
     
     /**
-     * Usuwa wszystkie załączniki przypisane do rejsu
-     * @param tripId identyfikator rejsu
+     * Удаляет все вложения, привязанные к рейсу
+     * @param tripId идентификатор рейса
      */
     void deleteByTripId(Long tripId);
 }

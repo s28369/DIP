@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Główny kontroler aplikacji zarządzający widokami
+ * Главный контроллер приложения, управляющий представлениями
  */
 @Component
 public class MainController {
@@ -35,6 +35,7 @@ public class MainController {
     
     private final AuthenticationService authenticationService;
     private final TruckManagementController truckManagementController;
+    private final TrailerManagementController trailerManagementController;
     private final DocumentManagementController documentManagementController;
     private final UserManagementController userManagementController;
     private final DriverManagementController driverManagementController;
@@ -44,6 +45,7 @@ public class MainController {
     public MainController(
         AuthenticationService authenticationService,
         TruckManagementController truckManagementController,
+        TrailerManagementController trailerManagementController,
         DocumentManagementController documentManagementController,
         UserManagementController userManagementController,
         DriverManagementController driverManagementController,
@@ -51,6 +53,7 @@ public class MainController {
     ) {
         this.authenticationService = authenticationService;
         this.truckManagementController = truckManagementController;
+        this.trailerManagementController = trailerManagementController;
         this.documentManagementController = documentManagementController;
         this.userManagementController = userManagementController;
         this.driverManagementController = driverManagementController;
@@ -58,7 +61,7 @@ public class MainController {
     }
     
     /**
-     * Inicjalizacja kontrolera
+     * Инициализация контроллера
      */
     @FXML
     public void initialize() {
@@ -68,17 +71,17 @@ public class MainController {
     }
     
     /**
-     * Aktualizuje informacje o zalogowanym użytkowniku
+     * Обновляет информацию о залогированном пользователе
      */
     private void updateUserInfo() {
         if (authenticationService.isLoggedIn()) {
-            welcomeLabel.setText("Witaj, " + authenticationService.getCurrentUser().getFullName());
-            roleLabel.setText("Rola: " + getRoleDisplayName());
+            welcomeLabel.setText("Добро пожаловать, " + authenticationService.getCurrentUser().getFullName());
+            roleLabel.setText("Роль: " + getRoleDisplayName());
         }
     }
     
     /**
-     * Konfiguruje dostęp do panelu administratora
+     * Настраивает доступ к панели администратора
      */
     private void configureAdminAccess() {
         if (adminButton != null) {
@@ -90,17 +93,17 @@ public class MainController {
     }
     
     /**
-     * Zwraca nazwę roli użytkownika do wyświetlenia
+     * Возвращает название роли пользователя для отображения
      */
     private String getRoleDisplayName() {
         return switch (authenticationService.getCurrentUser().getRole()) {
-            case ADMINISTRATOR -> "Administrator";
-            case LOGISTICIAN -> "Logistyk";
+            case ADMINISTRATOR -> "Администратор";
+            case LOGISTICIAN -> "Логист";
         };
     }
     
     /**
-     * Wyświetla widok zarządzania flotą
+     * Отображает представление управления автопарком
      */
     @FXML
     private void showTruckManagement() {
@@ -113,8 +116,19 @@ public class MainController {
         }
     }
     
+    @FXML
+    private void showTrailerManagement() {
+        try {
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(trailerManagementController.getView());
+            trailerManagementController.refreshData();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
-     * Wyświetla widok zarządzania dokumentami
+     * Отображает представление управления документами
      */
     @FXML
     private void showDocumentManagement() {
@@ -128,7 +142,7 @@ public class MainController {
     }
     
     /**
-     * Wyświetla widok zarządzania kierowcami
+     * Отображает представление управления водителями
      */
     @FXML
     private void showDriverManagement() {
@@ -142,7 +156,7 @@ public class MainController {
     }
     
     /**
-     * Wyświetla widok aktywnych rejsów
+     * Отображает представление активных рейсов
      */
     @FXML
     private void showTripManagement() {
@@ -156,11 +170,11 @@ public class MainController {
     }
     
     /**
-     * Wyświetla panel administratora - zarządzanie użytkownikami
+     * Отображает панель администратора — управление пользователями
      */
     @FXML
     private void showUserManagement() {
-        // Sprawdź uprawnienia
+        // Проверка прав доступа
         if (!authenticationService.isLoggedIn() || 
             authenticationService.getCurrentUser().getRole() != User.UserRole.ADMINISTRATOR) {
             return;
@@ -176,7 +190,7 @@ public class MainController {
     }
     
     /**
-     * Obsługa wylogowania
+     * Обработка выхода из системы
      */
     @FXML
     private void handleLogout() {

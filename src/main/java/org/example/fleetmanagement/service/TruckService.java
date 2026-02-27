@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Serwis obsługujący operacje na ciężarówkach
+ * Сервис для операций с грузовиками
  */
 @Service
 @Transactional
@@ -24,63 +24,63 @@ public class TruckService {
     }
     
     /**
-     * Zwraca wszystkie ciężarówki
-     * @return lista wszystkich ciężarówek
+     * Возвращает все грузовики
+     * @return список всех грузовиков
      */
     public List<Truck> getAllTrucks() {
         return truckRepository.findAll();
     }
     
     /**
-     * Wyszukuje ciężarówkę po ID
-     * @param id identyfikator ciężarówki
-     * @return Optional z ciężarówką jeśli istnieje
+     * Ищет грузовик по ID
+     * @param id идентификатор грузовика
+     * @return Optional с грузовиком, если существует
      */
     public Optional<Truck> getTruckById(Long id) {
         return truckRepository.findById(id);
     }
     
     /**
-     * Dodaje nową ciężarówkę do systemu
-     * @param truck ciężarówka do dodania
-     * @return zapisana ciężarówka
-     * @throws IllegalArgumentException jeśli ciężarówka o podanym numerze rejestracyjnym już istnieje
+     * Добавляет новый грузовик в систему
+     * @param truck грузовик для добавления
+     * @return сохранённый грузовик
+     * @throws IllegalArgumentException если грузовик с указанным регистрационным номером уже существует
      */
     public Truck addTruck(Truck truck) {
         if (truckRepository.existsByRegistrationNumber(truck.getRegistrationNumber())) {
-            throw new IllegalArgumentException("Ciężarówka o numerze rejestracyjnym " 
-                + truck.getRegistrationNumber() + " już istnieje w systemie");
+            throw new IllegalArgumentException("Грузовик с регистрационным номером " 
+                + truck.getRegistrationNumber() + " уже существует в системе");
         }
         return truckRepository.save(truck);
     }
     
     /**
-     * Aktualizuje dane ciężarówki
-     * @param truck ciężarówka z zaktualizowanymi danymi
-     * @return zaktualizowana ciężarówka
+     * Обновляет данные грузовика
+     * @param truck грузовик с обновлёнными данными
+     * @return обновлённый грузовик
      */
     public Truck updateTruck(Truck truck) {
         return truckRepository.save(truck);
     }
     
     /**
-     * Usuwa ciężarówkę z systemu
-     * @param id identyfikator ciężarówki do usunięcia
-     * @throws IllegalArgumentException jeśli ciężarówka nie istnieje
+     * Удаляет грузовик из системы
+     * @param id идентификатор грузовика для удаления
+     * @throws IllegalArgumentException если грузовик не существует
      */
     public void deleteTruck(Long id) {
         if (!truckRepository.existsById(id)) {
-            throw new IllegalArgumentException("Ciężarówka o ID " + id + " nie istnieje");
+            throw new IllegalArgumentException("Грузовик с ID " + id + " не существует");
         }
         truckRepository.deleteById(id);
     }
     
     /**
-     * Wyszukuje ciężarówki po statusie
-     * @param status status ciężarówki
-     * @return lista ciężarówek o danym statusie
+     * Ищет грузовики по статусу
+     * @param status статус грузовика
+     * @return список грузовиков с указанным статусом
      */
-    public List<Truck> getTrucksByStatus(Truck.TruckStatus status) {
+    public List<Truck> getTrucksByStatus(String status) {
         return truckRepository.findByStatus(status);
     }
 }

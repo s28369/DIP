@@ -7,21 +7,21 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * Repozytorium do obsługi operacji na załącznikach ciężarówek
+ * Репозиторий для операций с вложениями грузовиков
  */
 @Repository
 public interface TruckAttachmentRepository extends JpaRepository<TruckAttachment, Long> {
     
     /**
-     * Wyszukuje załączniki przypisane do ciężarówki
-     * @param truckId identyfikator ciężarówki
-     * @return lista załączników
+     * Ищет вложения, привязанные к грузовику
+     * @param truckId идентификатор грузовика
+     * @return список вложений
      */
     List<TruckAttachment> findByTruckId(Long truckId);
     
     /**
-     * Usuwa wszystkie załączniki przypisane do ciężarówki
-     * @param truckId identyfikator ciężarówki
+     * Удаляет все вложения, привязанные к грузовику
+     * @param truckId идентификатор грузовика
      */
     void deleteByTruckId(Long truckId);
 }

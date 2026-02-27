@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 
 /**
- * Klasa reprezentująca dokument przypisany do kierowcy
+ * Класс, представляющий документ, привязанный к водителю
  */
 @Entity
 @Table(name = "driver_document")
@@ -37,14 +37,14 @@ public class DriverDocument {
     private String pdfFilename;
 
     /**
-     * Enum określający typ dokumentu kierowcy
+     * Перечисление, определяющее тип документа водителя
      */
     public enum DocumentType {
-        DRIVING_LICENSE("Prawo jazdy"),
-        MEDICAL_CERTIFICATE("Orzeczenie lekarskie"),
-        TRAINING_CERTIFICATE("Świadectwo szkolenia"),
-        CPC_CARD("Karta kwalifikacji zawodowej (CPC)"),
-        OTHER("Inne");
+        DRIVING_LICENSE("Водительское удостоверение"),
+        MEDICAL_CERTIFICATE("Медицинская справка"),
+        TRAINING_CERTIFICATE("Свидетельство об обучении"),
+        CPC_CARD("Карта квалификации водителя (CPC)"),
+        OTHER("Прочее");
 
         private final String displayName;
 

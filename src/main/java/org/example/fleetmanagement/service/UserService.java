@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Serwis obsługujący operacje na użytkownikach
+ * Сервис для операций с пользователями
  */
 @Service
 @Transactional
@@ -24,70 +24,70 @@ public class UserService {
     }
     
     /**
-     * Zwraca wszystkich użytkowników
-     * @return lista wszystkich użytkowników
+     * Возвращает всех пользователей
+     * @return список всех пользователей
      */
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
     
     /**
-     * Wyszukuje użytkownika po ID
-     * @param id identyfikator użytkownika
-     * @return Optional z użytkownikiem jeśli istnieje
+     * Ищет пользователя по ID
+     * @param id идентификатор пользователя
+     * @return Optional с пользователем, если существует
      */
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }
     
     /**
-     * Wyszukuje użytkownika po nazwie
-     * @param username nazwa użytkownika
-     * @return Optional z użytkownikiem jeśli istnieje
+     * Ищет пользователя по имени
+     * @param username имя пользователя
+     * @return Optional с пользователем, если существует
      */
     public Optional<User> getUserByUsername(String username) {
         return userRepository.findByUsername(username);
     }
     
     /**
-     * Dodaje nowego użytkownika do systemu
-     * @param user użytkownik do dodania
-     * @return zapisany użytkownik
-     * @throws IllegalArgumentException jeśli użytkownik o podanej nazwie już istnieje
+     * Добавляет нового пользователя в систему
+     * @param user пользователь для добавления
+     * @return сохранённый пользователь
+     * @throws IllegalArgumentException если пользователь с указанным именем уже существует
      */
     public User addUser(User user) {
         if (userRepository.existsByUsername(user.getUsername())) {
-            throw new IllegalArgumentException("Użytkownik o nazwie " 
-                + user.getUsername() + " już istnieje w systemie");
+            throw new IllegalArgumentException("Пользователь с именем " 
+                + user.getUsername() + " уже существует в системе");
         }
         return userRepository.save(user);
     }
     
     /**
-     * Aktualizuje dane użytkownika
-     * @param user użytkownik z zaktualizowanymi danymi
-     * @return zaktualizowany użytkownik
+     * Обновляет данные пользователя
+     * @param user пользователь с обновлёнными данными
+     * @return обновлённый пользователь
      */
     public User updateUser(User user) {
         return userRepository.save(user);
     }
     
     /**
-     * Usuwa użytkownika z systemu
-     * @param id identyfikator użytkownika do usunięcia
-     * @throws IllegalArgumentException jeśli użytkownik nie istnieje
+     * Удаляет пользователя из системы
+     * @param id идентификатор пользователя для удаления
+     * @throws IllegalArgumentException если пользователь не существует
      */
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
-            throw new IllegalArgumentException("Użytkownik o ID " + id + " nie istnieje");
+            throw new IllegalArgumentException("Пользователь с ID " + id + " не существует");
         }
         userRepository.deleteById(id);
     }
     
     /**
-     * Sprawdza czy użytkownik o podanej nazwie istnieje
-     * @param username nazwa użytkownika
-     * @return true jeśli istnieje
+     * Проверяет, существует ли пользователь с указанным именем
+     * @param username имя пользователя
+     * @return true, если существует
      */
     public boolean existsByUsername(String username) {
         return userRepository.existsByUsername(username);

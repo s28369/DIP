@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Serwis obsługujący operacje na dokumentach kierowców
+ * Сервис для операций с документами водителей
  */
 @Service
 @Transactional

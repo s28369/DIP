@@ -3,7 +3,7 @@ package org.example.fleetmanagement.model;
 import jakarta.persistence.*;
 
 /**
- * Klasa reprezentująca użytkownika systemu
+ * Класс, представляющий пользователя системы
  */
 @Entity
 @Table(name = "app_user")
@@ -27,7 +27,7 @@ public class User {
     private String fullName;
     
     /**
-     * Enum określający rolę użytkownika w systemie
+     * Перечисление, определяющее роль пользователя в системе
      */
     public enum UserRole {
         ADMINISTRATOR,

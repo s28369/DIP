@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Kontroler obsługujący logowanie użytkownika
+ * Контроллер, обрабатывающий вход пользователя в систему
  */
 @Component
 public class LoginController {
@@ -29,7 +29,7 @@ public class LoginController {
     }
     
     /**
-     * Inicjalizacja kontrolera
+     * Инициализация контроллера
      */
     @FXML
     public void initialize() {
@@ -38,7 +38,7 @@ public class LoginController {
     }
     
     /**
-     * Obsługa przycisku logowania
+     * Обработка нажатия кнопки входа
      */
     @FXML
     private void handleLogin() {
@@ -46,7 +46,7 @@ public class LoginController {
         String password = passwordField.getText();
         
         if (username.isEmpty() || password.isEmpty()) {
-            showAlert("Błąd", "Proszę wypełnić wszystkie pola", Alert.AlertType.ERROR);
+            showAlert("Ошибка", "Пожалуйста, заполните все поля", Alert.AlertType.ERROR);
             return;
         }
         
@@ -54,18 +54,18 @@ public class LoginController {
             try {
                 FleetManagementApplication.showMainScreen();
             } catch (Exception e) {
-                showAlert("Błąd", "Nie można załadować głównego ekranu: " + e.getMessage(), 
+                showAlert("Ошибка", "Не удалось загрузить главный экран: " + e.getMessage(), 
                     Alert.AlertType.ERROR);
                 e.printStackTrace();
             }
         } else {
-            showAlert("Błąd logowania", "Nieprawidłowa nazwa użytkownika lub hasło", 
+            showAlert("Ошибка входа", "Неверное имя пользователя или пароль", 
                 Alert.AlertType.ERROR);
         }
     }
     
     /**
-     * Wyświetla okno dialogowe z komunikatem
+     * Отображает диалоговое окно с сообщением
      */
     private void showAlert(String title, String content, Alert.AlertType type) {
         Alert alert = new Alert(type);

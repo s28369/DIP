@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 
 /**
- * Serwis obsługujący logowanie użytkowników
+ * Сервис аутентификации пользователей
  */
 @Service
 public class AuthenticationService {
@@ -22,10 +22,10 @@ public class AuthenticationService {
     }
     
     /**
-     * Loguje użytkownika do systemu
-     * @param username nazwa użytkownika
-     * @param password hasło
-     * @return true jeśli logowanie się powiodło, false w przeciwnym wypadku
+     * Выполняет вход пользователя в систему
+     * @param username имя пользователя
+     * @param password пароль
+     * @return true при успешном входе, false в противном случае
      */
     public boolean login(String username, String password) {
         Optional<User> userOptional = userRepository.findByUsername(username);
@@ -41,31 +41,31 @@ public class AuthenticationService {
     }
     
     /**
-     * Wylogowuje aktualnie zalogowanego użytkownika
+     * Выполняет выход текущего пользователя
      */
     public void logout() {
         currentUser = null;
     }
     
     /**
-     * Zwraca aktualnie zalogowanego użytkownika
-     * @return zalogowany użytkownik lub null jeśli nikt nie jest zalogowany
+     * Возвращает текущего авторизованного пользователя
+     * @return авторизованный пользователь или null, если никто не авторизован
      */
     public User getCurrentUser() {
         return currentUser;
     }
     
     /**
-     * Sprawdza czy użytkownik jest zalogowany
-     * @return true jeśli użytkownik jest zalogowany
+     * Проверяет, авторизован ли пользователь
+     * @return true, если пользователь авторизован
      */
     public boolean isLoggedIn() {
         return currentUser != null;
     }
     
     /**
-     * Sprawdza czy zalogowany użytkownik ma rolę administratora
-     * @return true jeśli użytkownik jest administratorem
+     * Проверяет, является ли текущий пользователь администратором
+     * @return true, если пользователь администратор
      */
     public boolean isAdmin() {
         return currentUser != null && currentUser.getRole() == User.UserRole.ADMINISTRATOR;

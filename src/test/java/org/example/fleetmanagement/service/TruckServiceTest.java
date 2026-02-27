@@ -37,7 +37,7 @@ class TruckServiceTest {
         testTruck.setId(1L);
         testTruck.setBrand("Volvo FH16");
         testTruck.setRegistrationNumber("WW12345");
-        testTruck.setStatus(Truck.TruckStatus.ACTIVE);
+        testTruck.setStatus(Truck.STATUS_AVAILABLE);
     }
 
     @Test
@@ -113,13 +113,13 @@ class TruckServiceTest {
     @Test
     void getTrucksByStatus_ShouldReturnTrucksWithGivenStatus() {
         List<Truck> activeTrucks = Arrays.asList(testTruck);
-        when(truckRepository.findByStatus(Truck.TruckStatus.ACTIVE)).thenReturn(activeTrucks);
+        when(truckRepository.findByStatus(Truck.STATUS_AVAILABLE)).thenReturn(activeTrucks);
 
-        List<Truck> result = truckService.getTrucksByStatus(Truck.TruckStatus.ACTIVE);
+        List<Truck> result = truckService.getTrucksByStatus(Truck.STATUS_AVAILABLE);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(Truck.TruckStatus.ACTIVE, result.get(0).getStatus());
-        verify(truckRepository, times(1)).findByStatus(Truck.TruckStatus.ACTIVE);
+        assertEquals(Truck.STATUS_AVAILABLE, result.get(0).getStatus());
+        verify(truckRepository, times(1)).findByStatus(Truck.STATUS_AVAILABLE);
     }
 }

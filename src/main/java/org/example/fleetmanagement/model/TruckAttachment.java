@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * Klasa reprezentująca załącznik PDF przypisany do ciężarówki
+ * Класс, представляющий вложение PDF, привязанное к грузовику
  */
 @Entity
 @Table(name = "truck_attachment")
@@ -109,7 +109,7 @@ public class TruckAttachment {
     }
     
     /**
-     * Zwraca rozmiar pliku w czytelnym formacie
+     * Возвращает размер файла в удобочитаемом формате
      */
     public String getFileSizeFormatted() {
         if (fileSize == null) return "0 B";

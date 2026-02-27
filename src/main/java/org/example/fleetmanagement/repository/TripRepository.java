@@ -7,38 +7,38 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * Repozytorium do obsługi operacji na rejsach/trasach
+ * Репозиторий для операций с рейсами/маршрутами
  */
 @Repository
 public interface TripRepository extends JpaRepository<Trip, Long> {
     
     /**
-     * Wyszukuje rejsy po statusie
+     * Ищет рейсы по статусу
      */
     List<Trip> findByStatus(Trip.TripStatus status);
     
     /**
-     * Wyszukuje aktywne rejsy (zaplanowane lub w trakcie)
+     * Ищет активные рейсы (запланированные или в пути)
      */
     List<Trip> findByStatusIn(List<Trip.TripStatus> statuses);
     
     /**
-     * Wyszukuje rejsy dla danej ciężarówki
+     * Ищет рейсы для указанного грузовика
      */
     List<Trip> findByTruckId(Long truckId);
     
     /**
-     * Wyszukuje rejsy dla danego kierowcy
+     * Ищет рейсы для указанного водителя
      */
     List<Trip> findByDriverId(Long driverId);
     
     /**
-     * Wyszukuje aktywne rejsy dla danego kierowcy
+     * Ищет активные рейсы для указанного водителя
      */
     List<Trip> findByDriverIdAndStatusIn(Long driverId, List<Trip.TripStatus> statuses);
     
     /**
-     * Wyszukuje aktywne rejsy dla danej ciężarówki
+     * Ищет активные рейсы для указанного грузовика
      */
     List<Trip> findByTruckIdAndStatusIn(Long truckId, List<Trip.TripStatus> statuses);
 }

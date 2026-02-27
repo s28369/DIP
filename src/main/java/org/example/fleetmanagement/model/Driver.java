@@ -2,115 +2,71 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 
-/**
- * Klasa reprezentująca kierowcę w systemie zarządzania flotą
- */
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "driver")
 public class Driver {
-    
+
+    public static final String STATUS_AVAILABLE = "Доступен";
+    public static final String STATUS_ON_TRIP = "в рейсе";
+    public static final String STATUS_MAINTENANCE = "на ремонте";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @Column(name = "first_name", nullable = false, length = 50)
-    private String firstName;
-    
-    @Column(name = "last_name", nullable = false, length = 50)
-    private String lastName;
-    
-    @Column(name = "phone_number", length = 20)
-    private String phoneNumber;
-    
-    @Column(name = "license_number", nullable = false, unique = true, length = 30)
-    private String licenseNumber;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private DriverStatus status = DriverStatus.AVAILABLE;
-    
-    /**
-     * Enum określający status kierowcy
-     */
-    public enum DriverStatus {
-        AVAILABLE,
-        ON_TRIP,
-        ON_LEAVE,
-        UNAVAILABLE
-    }
-    
 
-    
+    @Column(name = "full_name", nullable = false, length = 150)
+    private String fullName;
+
+    @Column(nullable = false, length = 50)
+    private String status = STATUS_AVAILABLE;
+
+    @OneToMany(mappedBy = "driver", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<DriverPhone> phones = new ArrayList<>();
+
     public Driver() {
     }
-    
-    public Driver(String firstName, String lastName, String phoneNumber, String licenseNumber) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.phoneNumber = phoneNumber;
-        this.licenseNumber = licenseNumber;
-        this.status = DriverStatus.AVAILABLE;
-    }
-    
 
-    
     public Long getId() {
         return id;
     }
-    
+
     public void setId(Long id) {
         this.id = id;
     }
-    
-    public String getFirstName() {
-        return firstName;
+
+    public String getFullName() {
+        return fullName;
     }
-    
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
     }
-    
-    public String getLastName() {
-        return lastName;
-    }
-    
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-    
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-    
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-    
-    public String getLicenseNumber() {
-        return licenseNumber;
-    }
-    
-    public void setLicenseNumber(String licenseNumber) {
-        this.licenseNumber = licenseNumber;
-    }
-    
-    public DriverStatus getStatus() {
+
+    public String getStatus() {
         return status;
     }
-    
-    public void setStatus(DriverStatus status) {
+
+    public void setStatus(String status) {
         this.status = status;
     }
-    
-    /**
-     * Zwraca pełne imię i nazwisko kierowcy
-     */
-    public String getFullName() {
-        return firstName + " " + lastName;
+
+    public List<DriverPhone> getPhones() {
+        return phones;
     }
-    
+
+    public void setPhones(List<DriverPhone> phones) {
+        this.phones = phones;
+    }
+
+    public int getPhoneCount() {
+        return phones != null ? phones.size() : 0;
+    }
+
     @Override
     public String toString() {
-        return getFullName() + " (" + licenseNumber + ")";
+        return fullName;
     }
 }

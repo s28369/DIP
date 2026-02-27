@@ -2,6 +2,7 @@ package org.example.fleetmanagement.controller;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
@@ -24,7 +25,7 @@ import java.nio.file.Files;
 import java.time.LocalDate;
 
 /**
- * Kontroler zarządzający widokiem dokumentów
+ * Контроллер управления представлением документов
  */
 @Component
 public class DocumentManagementController {
@@ -32,6 +33,7 @@ public class DocumentManagementController {
     private final DocumentService documentService;
     private final TruckService truckService;
     private final ObservableList<Document> documentList = FXCollections.observableArrayList();
+    private FilteredList<Document> filteredList;
     private VBox view;
     private TableView<Document> tableView;
     
@@ -43,88 +45,124 @@ public class DocumentManagementController {
     }
     
     /**
-     * Inicjalizuje widok zarządzania dokumentami
+     * Инициализирует представление управления документами
      */
     private void initializeView() {
         view = new VBox(10);
         view.setPadding(new Insets(15));
         
 
-        Label titleLabel = new Label("Zarządzanie Dokumentami");
+        Label titleLabel = new Label("Управление документами");
         titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
         
 
-        Button addButton = new Button("Dodaj dokument");
+        Button addButton = new Button("Добавить документ");
         addButton.setOnAction(e -> showAddDocumentDialog());
         
-        Button deleteButton = new Button("Usuń dokument");
+        Button deleteButton = new Button("Удалить документ");
         deleteButton.setOnAction(e -> handleDeleteDocument());
         
-        Button refreshButton = new Button("Odśwież");
+        Button refreshButton = new Button("Обновить");
         refreshButton.setOnAction(e -> refreshData());
         
-        Button expiringButton = new Button("Wygasające dokumenty");
+        Button expiringButton = new Button("Истекающие документы");
         expiringButton.setOnAction(e -> showExpiringDocuments());
         
-        Button uploadPdfButton = new Button("Dodaj PDF");
+        Button uploadPdfButton = new Button("Добавить PDF");
         uploadPdfButton.setOnAction(e -> handleUploadPdf());
         
-        Button downloadPdfButton = new Button("Pobierz PDF");
+        Button downloadPdfButton = new Button("Скачать PDF");
         downloadPdfButton.setOnAction(e -> handleDownloadPdf());
         
         HBox buttonBox = new HBox(10, addButton, deleteButton, uploadPdfButton, downloadPdfButton, refreshButton, expiringButton);
 
+        TextField searchField = new TextField();
+        searchField.setPromptText("Введите текст для поиска...");
+        searchField.setPrefWidth(250);
+
+        ComboBox<String> searchParam = new ComboBox<>();
+        searchParam.getItems().addAll("Все", "Грузовик", "Тип", "Описание");
+        searchParam.setValue("Все");
+
+        filteredList = new FilteredList<>(documentList, p -> true);
+
+        Runnable applyFilter = () -> {
+            String text = searchField.getText();
+            String param = searchParam.getValue();
+            if (text == null || text.trim().isEmpty()) {
+                filteredList.setPredicate(p -> true);
+                return;
+            }
+            String lower = text.trim().toLowerCase();
+            filteredList.setPredicate(doc -> {
+                String truckReg = doc.getTruck() != null ? doc.getTruck().getRegistrationNumber() : "";
+                String typeName = doc.getDocumentType() != null ? doc.getDocumentType().getDisplayName() : "";
+                String desc = doc.getDescription() != null ? doc.getDescription() : "";
+                return switch (param) {
+                    case "Грузовик" -> contains(truckReg, lower);
+                    case "Тип" -> contains(typeName, lower);
+                    case "Описание" -> contains(desc, lower);
+                    default -> contains(truckReg, lower) || contains(typeName, lower) || contains(desc, lower);
+                };
+            });
+        };
+        searchField.textProperty().addListener((obs, o, n) -> applyFilter.run());
+        searchParam.valueProperty().addListener((obs, o, n) -> applyFilter.run());
+
+        HBox searchBox = new HBox(10, new Label("Поиск:"), searchField, searchParam);
+        searchBox.setPadding(new Insets(0, 0, 5, 0));
+
         tableView = new TableView<>();
-        tableView.setItems(documentList);
+        tableView.setItems(filteredList);
         
         TableColumn<Document, Long> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         idColumn.setPrefWidth(50);
         
-        TableColumn<Document, String> truckColumn = new TableColumn<>("Ciężarówka");
+        TableColumn<Document, String> truckColumn = new TableColumn<>("Грузовик");
         truckColumn.setCellValueFactory(cellData -> {
             Document doc = cellData.getValue();
             Truck truck = doc != null ? doc.getTruck() : null;
-            String regNumber = truck != null ? truck.getRegistrationNumber() : "Brak";
+            String regNumber = truck != null ? truck.getRegistrationNumber() : "Нет";
             return new javafx.beans.property.SimpleStringProperty(regNumber);
         });
         truckColumn.setPrefWidth(150);
         
-        TableColumn<Document, Document.DocumentType> typeColumn = new TableColumn<>("Typ dokumentu");
+        TableColumn<Document, Document.DocumentType> typeColumn = new TableColumn<>("Тип документа");
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("documentType"));
         typeColumn.setPrefWidth(150);
         
-        TableColumn<Document, LocalDate> expiryColumn = new TableColumn<>("Data ważności");
+        TableColumn<Document, LocalDate> expiryColumn = new TableColumn<>("Срок действия");
         expiryColumn.setCellValueFactory(new PropertyValueFactory<>("expiryDate"));
         expiryColumn.setPrefWidth(120);
         
-        TableColumn<Document, String> descriptionColumn = new TableColumn<>("Opis");
+        TableColumn<Document, String> descriptionColumn = new TableColumn<>("Описание");
         descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
         descriptionColumn.setPrefWidth(200);
         
         TableColumn<Document, String> pdfColumn = new TableColumn<>("PDF");
         pdfColumn.setCellValueFactory(cellData -> {
             Document doc = cellData.getValue();
-            String pdfStatus = doc.hasPdf() ? "Tak (" + doc.getPdfFilename() + ")" : "Brak";
+            String pdfStatus = doc.hasPdf() ? "Да (" + doc.getPdfFilename() + ")" : "Нет";
             return new javafx.beans.property.SimpleStringProperty(pdfStatus);
         });
         pdfColumn.setPrefWidth(150);
         
         tableView.getColumns().addAll(idColumn, truckColumn, typeColumn, expiryColumn, descriptionColumn, pdfColumn);
         
-        view.getChildren().addAll(titleLabel, buttonBox, tableView);
+        view.getChildren().addAll(titleLabel, buttonBox, searchBox, tableView);
         VBox.setVgrow(tableView, javafx.scene.layout.Priority.ALWAYS);
     }
     
     /**
-     * Zwraca widok kontrolera
+     * Возвращает представление контроллера
      */
     public Parent getView() {
         return view;
     }
     
     /**
-     * Odświeża dane w tabeli
+     * Обновляет данные в таблице
      */
     public void refreshData() {
         documentList.clear();
@@ -132,14 +170,14 @@ public class DocumentManagementController {
     }
     
     /**
-     * Wyświetla dialog dodawania nowego dokumentu
+     * Отображает диалог добавления нового документа
      */
     private void showAddDocumentDialog() {
         Dialog<Document> dialog = new Dialog<>();
-        dialog.setTitle("Dodaj dokument");
-        dialog.setHeaderText("Wprowadź dane nowego dokumentu");
+        dialog.setTitle("Добавить документ");
+        dialog.setHeaderText("Введите данные нового документа");
         
-        ButtonType addButtonType = new ButtonType("Dodaj", ButtonBar.ButtonData.OK_DONE);
+        ButtonType addButtonType = new ButtonType("Добавить", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
         
 
@@ -155,14 +193,14 @@ public class DocumentManagementController {
         datePicker.setValue(LocalDate.now().plusMonths(12));
         
         TextField descriptionField = new TextField();
-        descriptionField.setPromptText("Opis dokumentu");
+        descriptionField.setPromptText("Описание документа");
         
         VBox content = new VBox(10);
         content.getChildren().addAll(
-            new Label("Ciężarówka:"), truckComboBox,
-            new Label("Typ dokumentu:"), typeComboBox,
-            new Label("Data ważności:"), datePicker,
-            new Label("Opis:"), descriptionField
+            new Label("Грузовик:"), truckComboBox,
+            new Label("Тип документа:"), typeComboBox,
+            new Label("Срок действия:"), datePicker,
+            new Label("Описание:"), descriptionField
         );
         content.setPadding(new Insets(10));
         
@@ -171,7 +209,7 @@ public class DocumentManagementController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == addButtonType) {
                 if (truckComboBox.getValue() == null) {
-                    showAlert("Błąd", "Proszę wybrać ciężarówkę", Alert.AlertType.ERROR);
+                    showAlert("Ошибка", "Выберите грузовик", Alert.AlertType.ERROR);
                     return null;
                 }
                 
@@ -190,9 +228,9 @@ public class DocumentManagementController {
                 try {
                     documentService.addDocument(document);
                     refreshData();
-                    showAlert("Sukces", "Dokument został dodany", Alert.AlertType.INFORMATION);
+                    showAlert("Успех", "Документ добавлен", Alert.AlertType.INFORMATION);
                 } catch (Exception e) {
-                    showAlert("Błąd", "Nie można dodać dokumentu: " + e.getMessage(), 
+                    showAlert("Ошибка", "Не удалось добавить документ: " + e.getMessage(), 
                         Alert.AlertType.ERROR);
                 }
             }
@@ -200,29 +238,29 @@ public class DocumentManagementController {
     }
     
     /**
-     * Obsługuje usuwanie dokumentu
+     * Обрабатывает удаление документа
      */
     private void handleDeleteDocument() {
         Document selectedDocument = tableView.getSelectionModel().getSelectedItem();
         
         if (selectedDocument == null) {
-            showAlert("Błąd", "Proszę wybrać dokument do usunięcia", Alert.AlertType.WARNING);
+            showAlert("Ошибка", "Выберите документ для удаления", Alert.AlertType.WARNING);
             return;
         }
         
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("Potwierdzenie");
-        confirmAlert.setHeaderText("Czy na pewno chcesz usunąć ten dokument?");
-        confirmAlert.setContentText("Typ: " + selectedDocument.getDocumentType().getDisplayName());
+        confirmAlert.setTitle("Подтверждение");
+        confirmAlert.setHeaderText("Вы уверены, что хотите удалить этот документ?");
+        confirmAlert.setContentText("Тип: " + selectedDocument.getDocumentType().getDisplayName());
         
         confirmAlert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 try {
                     documentService.deleteDocument(selectedDocument.getId());
                     refreshData();
-                    showAlert("Sukces", "Dokument został usunięty", Alert.AlertType.INFORMATION);
+                    showAlert("Успех", "Документ удалён", Alert.AlertType.INFORMATION);
                 } catch (Exception e) {
-                    showAlert("Błąd", "Nie można usunąć dokumentu: " + e.getMessage(), 
+                    showAlert("Ошибка", "Не удалось удалить документ: " + e.getMessage(), 
                         Alert.AlertType.ERROR);
                 }
             }
@@ -230,21 +268,21 @@ public class DocumentManagementController {
     }
     
     /**
-     * Wyświetla listę wygasających dokumentów
+     * Отображает список истекающих документов
      */
     private void showExpiringDocuments() {
         var expiringDocs = documentService.getExpiringDocuments();
         
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Wygasające dokumenty");
-        alert.setHeaderText("Dokumenty wygasające w ciągu 30 dni:");
+        alert.setTitle("Истекающие документы");
+        alert.setHeaderText("Документы с истекающим сроком (30 дней):");
         
         if (expiringDocs.isEmpty()) {
-            alert.setContentText("Brak wygasających dokumentów");
+            alert.setContentText("Нет документов с истекающим сроком");
         } else {
             StringBuilder content = new StringBuilder();
             for (Document doc : expiringDocs) {
-                content.append(String.format("• %s - %s (ważny do: %s)\n",
+                content.append(String.format("• %s - %s (действителен до: %s)\n",
                     doc.getTruck().getRegistrationNumber(),
                     doc.getDocumentType().getDisplayName(),
                     doc.getExpiryDate()));
@@ -256,20 +294,20 @@ public class DocumentManagementController {
     }
     
     /**
-     * Obsługuje przesyłanie pliku PDF do wybranego dokumentu
+     * Обрабатывает загрузку файла PDF к выбранному документу
      */
     private void handleUploadPdf() {
         Document selectedDocument = tableView.getSelectionModel().getSelectedItem();
         
         if (selectedDocument == null) {
-            showAlert("Błąd", "Proszę wybrać dokument, do którego chcesz dodać PDF", Alert.AlertType.WARNING);
+            showAlert("Ошибка", "Выберите документ для добавления PDF", Alert.AlertType.WARNING);
             return;
         }
         
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Wybierz plik PDF");
+        fileChooser.setTitle("Выберите файл PDF");
         fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Pliki PDF", "*.pdf")
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
@@ -282,34 +320,34 @@ public class DocumentManagementController {
                 selectedDocument.setPdfFilename(file.getName());
                 documentService.updateDocument(selectedDocument);
                 refreshData();
-                showAlert("Sukces", "Plik PDF został dodany do dokumentu", Alert.AlertType.INFORMATION);
+                showAlert("Успех", "Файл PDF добавлен к документу", Alert.AlertType.INFORMATION);
             } catch (IOException e) {
-                showAlert("Błąd", "Nie można odczytać pliku: " + e.getMessage(), Alert.AlertType.ERROR);
+                showAlert("Ошибка", "Не удалось прочитать файл: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         }
     }
     
     /**
-     * Obsługuje pobieranie pliku PDF z wybranego dokumentu
+     * Обрабатывает скачивание файла PDF из выбранного документа
      */
     private void handleDownloadPdf() {
         Document selectedDocument = tableView.getSelectionModel().getSelectedItem();
         
         if (selectedDocument == null) {
-            showAlert("Błąd", "Proszę wybrać dokument", Alert.AlertType.WARNING);
+            showAlert("Ошибка", "Выберите документ", Alert.AlertType.WARNING);
             return;
         }
         
         if (!selectedDocument.hasPdf()) {
-            showAlert("Błąd", "Wybrany dokument nie ma załączonego pliku PDF", Alert.AlertType.WARNING);
+            showAlert("Ошибка", "У выбранного документа нет прикреплённого PDF", Alert.AlertType.WARNING);
             return;
         }
         
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Zapisz plik PDF");
+        fileChooser.setTitle("Сохранить файл PDF");
         fileChooser.setInitialFileName(selectedDocument.getPdfFilename());
         fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Pliki PDF", "*.pdf")
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
@@ -318,16 +356,20 @@ public class DocumentManagementController {
         if (file != null) {
             try {
                 Files.write(file.toPath(), selectedDocument.getPdfData());
-                showAlert("Sukces", "Plik PDF został zapisany:\n" + file.getAbsolutePath(), Alert.AlertType.INFORMATION);
+                showAlert("Успех", "Файл PDF сохранён:\n" + file.getAbsolutePath(), Alert.AlertType.INFORMATION);
             } catch (IOException e) {
-                showAlert("Błąd", "Nie można zapisać pliku: " + e.getMessage(), Alert.AlertType.ERROR);
+                showAlert("Ошибка", "Не удалось сохранить файл: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         }
     }
     
     /**
-     * Wyświetla okno dialogowe z komunikatem
+     * Отображает диалоговое окно с сообщением
      */
+    private static boolean contains(String value, String search) {
+        return value != null && value.toLowerCase().contains(search);
+    }
+
     private void showAlert(String title, String content, Alert.AlertType type) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
@@ -336,9 +378,6 @@ public class DocumentManagementController {
         alert.showAndWait();
     }
     
-    /**
-     * Konwerter dla wyświetlania ciężarówek w ComboBox
-     */
     private static class TruckStringConverter extends StringConverter<Truck> {
         @Override
         public String toString(Truck truck) {

@@ -8,29 +8,29 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Repozytorium do obsługi operacji na encji Truck
+ * Репозиторий для операций с сущностью Truck
  */
 @Repository
 public interface TruckRepository extends JpaRepository<Truck, Long> {
     
     /**
-     * Wyszukuje ciężarówkę po numerze rejestracyjnym
-     * @param registrationNumber numer rejestracyjny
-     * @return Optional z ciężarówką jeśli istnieje
+     * Ищет грузовик по регистрационному номеру
+     * @param registrationNumber регистрационный номер
+     * @return Optional с грузовиком, если существует
      */
     Optional<Truck> findByRegistrationNumber(String registrationNumber);
     
     /**
-     * Wyszukuje ciężarówki po statusie
-     * @param status status ciężarówki
-     * @return lista ciężarówek o danym statusie
+     * Ищет грузовики по статусу
+     * @param status статус грузовика
+     * @return список грузовиков с указанным статусом
      */
-    List<Truck> findByStatus(Truck.TruckStatus status);
+    List<Truck> findByStatus(String status);
     
     /**
-     * Sprawdza czy ciężarówka o podanym numerze rejestracyjnym istnieje
-     * @param registrationNumber numer rejestracyjny
-     * @return true jeśli istnieje, false w przeciwnym wypadku
+     * Проверяет, существует ли грузовик с указанным регистрационным номером
+     * @param registrationNumber регистрационный номер
+     * @return true, если существует, false в противном случае
      */
     boolean existsByRegistrationNumber(String registrationNumber);
 }

@@ -45,7 +45,7 @@ public class FleetManagementApplication extends Application {
         Parent root = loader.load();
         Scene scene = new Scene(root, 400, 300);
 
-        primaryStage.setTitle("System Zarządzania Flotą – Logowanie");
+        primaryStage.setTitle("Система управления автопарком — Авторизация");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -59,7 +59,7 @@ public class FleetManagementApplication extends Application {
         Parent root = loader.load();
         Scene scene = new Scene(root, 1000, 700);
 
-        primaryStage.setTitle("System Zarządzania Flotą");
+        primaryStage.setTitle("Система управления автопарком");
         primaryStage.setScene(scene);
         primaryStage.show();
     }

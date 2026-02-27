@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 
 /**
- * Klasa reprezentująca dokument przypisany do ciężarówki
+ * Класс, представляющий документ, привязанный к грузовику
  */
 @Entity
 @Table(name = "document")
@@ -37,14 +37,14 @@ public class Document {
     private String pdfFilename;
     
     /**
-     * Enum określający typ dokumentu
+     * Перечисление, определяющее тип документа
      */
     public enum DocumentType {
-        INSURANCE("Ubezpieczenie"),
-        TECHNICAL_INSPECTION("Przegląd techniczny"),
-        REGISTRATION("Rejestracja"),
-        PERMISSION("Zezwolenie"),
-        OTHER("Inne");
+        INSURANCE("Страхование"),
+        TECHNICAL_INSPECTION("Технический осмотр"),
+        REGISTRATION("Регистрация"),
+        PERMISSION("Разрешение"),
+        OTHER("Прочее");
         
         private final String displayName;
         
@@ -134,14 +134,14 @@ public class Document {
     }
     
     /**
-     * Sprawdza czy dokument ma załączony plik PDF
+     * Проверяет, есть ли у документа прикреплённый файл PDF
      */
     public boolean hasPdf() {
         return pdfData != null && pdfData.length > 0;
     }
     
     /**
-     * Sprawdza czy dokument wygasł
+     * Проверяет, истёк ли срок действия документа
      */
     public boolean isExpired() {
         return LocalDate.now().isAfter(expiryDate);
