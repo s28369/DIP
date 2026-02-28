@@ -5,6 +5,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -23,6 +24,8 @@ public class FleetManagementApplication extends Application {
                 .run();
 
         primaryStage = stage;
+        primaryStage.getIcons().add(new Image(
+            FleetManagementApplication.class.getResourceAsStream("/images/logo.png")));
         showLoginScreen();
     }
 

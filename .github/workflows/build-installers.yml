@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-windows:
-    name: Windows Installer (.msi)
+    name: Windows Installer (.exe)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +33,7 @@ jobs:
           copy "%M2%\javafx-fxml\%FX%\javafx-fxml-%FX%-win.jar"         target\fx-mods\
           copy target\fleet-management-1.0-SNAPSHOT.jar target\app-input\
 
-      - name: Create .msi installer with jpackage
+      - name: Create .exe installer with jpackage
         shell: cmd
         run: |
           jpackage ^
@@ -41,7 +41,7 @@ jobs:
             --name FleetManagement ^
             --main-jar fleet-management-1.0-SNAPSHOT.jar ^
             --main-class org.springframework.boot.loader.launch.JarLauncher ^
-            --type msi ^
+            --type exe ^
             --module-path target\fx-mods ^
             --add-modules javafx.controls,javafx.fxml,java.base,java.sql,java.naming,java.management,java.instrument,java.desktop,java.xml,java.logging,java.compiler,java.transaction.xa,java.security.jgss,java.security.sasl,java.prefs,java.scripting,jdk.unsupported,jdk.crypto.ec ^
             --java-options "--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.naming/javax.naming.spi=ALL-UNNAMED" ^
@@ -50,13 +50,14 @@ jobs:
             --win-menu ^
             --win-console ^
             --win-dir-chooser ^
+            --icon packaging\logo.ico ^
             --dest dist
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: FleetManagement-Windows
-          path: dist/*.msi
+          path: dist/*.exe
 
   build-macos:
     name: macOS Installer (.dmg)
@@ -98,6 +99,7 @@ jobs:
             --add-modules javafx.controls,javafx.fxml,java.base,java.sql,java.naming,java.management,java.instrument,java.desktop,java.xml,java.logging,java.compiler,java.transaction.xa,java.security.jgss,java.security.sasl,java.prefs,java.scripting,jdk.unsupported,jdk.crypto.ec \
             --java-options "--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.naming/javax.naming.spi=ALL-UNNAMED" \
             --app-version 1.0 \
+            --icon packaging/logo.icns \
             --dest dist
 
       - name: Upload macOS installer
