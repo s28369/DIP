@@ -11,13 +11,22 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import org.example.fleetmanagement.model.Trailer;
+import org.example.fleetmanagement.model.TrailerAttachment;
 import org.example.fleetmanagement.model.TrailerNote;
+import org.example.fleetmanagement.repository.TrailerAttachmentRepository;
 import org.example.fleetmanagement.service.TrailerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 @Component
 public class TrailerManagementController {
@@ -25,14 +34,17 @@ public class TrailerManagementController {
     private static final DateTimeFormatter DT_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final TrailerService trailerService;
+    private final TrailerAttachmentRepository attachmentRepository;
     private final ObservableList<Trailer> trailerList = FXCollections.observableArrayList();
     private FilteredList<Trailer> filteredList;
     private VBox view;
     private TableView<Trailer> tableView;
 
     @Autowired
-    public TrailerManagementController(TrailerService trailerService) {
+    public TrailerManagementController(TrailerService trailerService,
+                                       TrailerAttachmentRepository attachmentRepository) {
         this.trailerService = trailerService;
+        this.attachmentRepository = attachmentRepository;
         initializeView();
     }
 
@@ -62,6 +74,10 @@ public class TrailerManagementController {
         notesButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
         notesButton.setOnAction(e -> showNotesDialog());
 
+        Button attachmentsButton = new Button("Вложения PDF");
+        attachmentsButton.setStyle("-fx-background-color: #9b59b6; -fx-text-fill: white;");
+        attachmentsButton.setOnAction(e -> showAttachmentsDialog());
+
         Button deleteButton = new Button("Удалить прицеп");
         deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
         deleteButton.setOnAction(e -> handleDelete());
@@ -69,7 +85,7 @@ public class TrailerManagementController {
         Button refreshButton = new Button("Обновить");
         refreshButton.setOnAction(e -> refreshData());
 
-        HBox buttonBox = new HBox(10, addButton, editButton, notesButton, deleteButton, refreshButton);
+        HBox buttonBox = new HBox(10, addButton, editButton, notesButton, attachmentsButton, deleteButton, refreshButton);
 
         TextField searchField = new TextField();
         searchField.setPromptText("Введите текст для поиска...");
@@ -139,6 +155,24 @@ public class TrailerManagementController {
         notesCol.setPrefWidth(80);
 
         tableView.getColumns().addAll(regCol, brandCol, countryCol, statusCol, locationCol, notesCol);
+
+        tableView.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Trailer item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                } else {
+                    setStyle(getExpirationStyle(item.getAttachments()));
+                }
+            }
+        });
+
+        tableView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && tableView.getSelectionModel().getSelectedItem() != null) {
+                showAttachmentsDialog();
+            }
+        });
 
         view.getChildren().addAll(titleLabel, buttonBox, searchBox, tableView);
         VBox.setVgrow(tableView, Priority.ALWAYS);
@@ -463,6 +497,285 @@ public class TrailerManagementController {
                 }
             }
         });
+    }
+
+    // ---- Attachments dialog ----
+
+    private void showAttachmentsDialog() {
+        Trailer selected = tableView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Ошибка", "Выберите прицеп", Alert.AlertType.WARNING);
+            return;
+        }
+
+        Trailer trailer = trailerService.getTrailerById(selected.getId()).orElse(selected);
+
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Вложения PDF");
+        dialog.setHeaderText("Прицеп: " + trailer.getBrand() + " (" + trailer.getRegistrationNumber() + ")");
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+
+        TableView<TrailerAttachment> attachmentTable = new TableView<>();
+        ObservableList<TrailerAttachment> attachmentList = FXCollections.observableArrayList(trailer.getAttachments());
+        attachmentTable.setItems(attachmentList);
+        attachmentTable.setPrefHeight(250);
+
+        TableColumn<TrailerAttachment, Long> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+        idCol.setPrefWidth(50);
+
+        TableColumn<TrailerAttachment, String> nameCol = new TableColumn<>("Имя файла");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("filename"));
+        nameCol.setPrefWidth(200);
+
+        TableColumn<TrailerAttachment, String> descCol = new TableColumn<>("Описание");
+        descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
+        descCol.setPrefWidth(150);
+
+        TableColumn<TrailerAttachment, String> sizeCol = new TableColumn<>("Размер");
+        sizeCol.setCellValueFactory(cellData ->
+            new SimpleStringProperty(cellData.getValue().getFileSizeFormatted()));
+        sizeCol.setPrefWidth(80);
+
+        TableColumn<TrailerAttachment, String> dateCol = new TableColumn<>("Дата добавления");
+        dateCol.setCellValueFactory(cellData -> {
+            if (cellData.getValue().getUploadedAt() != null) {
+                return new SimpleStringProperty(
+                    cellData.getValue().getUploadedAt().format(DT_FMT));
+            }
+            return new SimpleStringProperty("-");
+        });
+        dateCol.setPrefWidth(120);
+
+        TableColumn<TrailerAttachment, String> expCol = new TableColumn<>("Дата окончания");
+        expCol.setCellValueFactory(cellData -> {
+            LocalDate exp = cellData.getValue().getExpirationDate();
+            return new SimpleStringProperty(exp != null ? exp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "—");
+        });
+        expCol.setPrefWidth(120);
+
+        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, sizeCol, dateCol, expCol);
+
+        attachmentTable.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(TrailerAttachment item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.getExpirationDate() == null) {
+                    setStyle("");
+                } else {
+                    long days = ChronoUnit.DAYS.between(LocalDate.now(), item.getExpirationDate());
+                    if (days <= 7) {
+                        setStyle("-fx-background-color: #ffcdd2;");
+                    } else if (days <= 30) {
+                        setStyle("-fx-background-color: #fff9c4;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
+
+        Button addBtn = new Button("Добавить PDF");
+        addBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        addBtn.setOnAction(e -> {
+            addAttachmentToTrailer(trailer, attachmentList);
+            refreshData();
+        });
+
+        Button downloadBtn = new Button("Скачать PDF");
+        downloadBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+        downloadBtn.setOnAction(e -> {
+            TrailerAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                downloadAttachment(sel);
+            } else {
+                showAlert("Ошибка", "Выберите вложение для скачивания", Alert.AlertType.WARNING);
+            }
+        });
+
+        Button editDescBtn = new Button("Изменить описание");
+        editDescBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white;");
+        editDescBtn.setOnAction(e -> {
+            TrailerAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                editAttachmentDescription(sel, attachmentList, trailer);
+            } else {
+                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+            }
+        });
+
+        Button expDateBtn = new Button("Дата окончания");
+        expDateBtn.setStyle("-fx-background-color: #16a085; -fx-text-fill: white;");
+        expDateBtn.setOnAction(e -> {
+            TrailerAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                editExpirationDate(sel, attachmentList, trailer);
+            } else {
+                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+            }
+        });
+
+        Button deleteBtn = new Button("Удалить вложение");
+        deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
+        deleteBtn.setOnAction(e -> {
+            TrailerAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                deleteAttachment(sel, attachmentList);
+                refreshData();
+            } else {
+                showAlert("Ошибка", "Выберите вложение для удаления", Alert.AlertType.WARNING);
+            }
+        });
+
+        HBox buttonBox = new HBox(10, addBtn, downloadBtn, editDescBtn, expDateBtn, deleteBtn);
+        buttonBox.setPadding(new Insets(10, 0, 0, 0));
+
+        VBox content = new VBox(10,
+            new Label("Список вложений PDF:"),
+            attachmentTable,
+            buttonBox
+        );
+        content.setPadding(new Insets(10));
+
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(650);
+        dialog.getDialogPane().setPrefHeight(400);
+        dialog.showAndWait();
+    }
+
+    private void addAttachmentToTrailer(Trailer trailer, ObservableList<TrailerAttachment> attachmentList) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Выберите файлы PDF");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"));
+
+        Stage stage = (Stage) view.getScene().getWindow();
+        java.util.List<File> files = fileChooser.showOpenMultipleDialog(stage);
+
+        if (files != null && !files.isEmpty()) {
+            int added = 0;
+            for (File file : files) {
+                try {
+                    byte[] fileData = Files.readAllBytes(file.toPath());
+                    TrailerAttachment attachment = new TrailerAttachment(file.getName(), "", fileData, trailer);
+                    attachmentRepository.save(attachment);
+                    attachmentList.add(attachment);
+                    added++;
+                } catch (IOException e) {
+                    showAlert("Ошибка", "Не удалось прочитать файл: " + file.getName() + "\n" + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+            if (added > 0) {
+                showAlert("Успех", "Добавлено файлов: " + added, Alert.AlertType.INFORMATION);
+            }
+        }
+    }
+
+    private void editAttachmentDescription(TrailerAttachment attachment, ObservableList<TrailerAttachment> attachmentList, Trailer trailer) {
+        TextInputDialog dlg = new TextInputDialog(attachment.getDescription() != null ? attachment.getDescription() : "");
+        dlg.setTitle("Описание документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+        dlg.setContentText("Описание:");
+        dlg.getEditor().setPrefWidth(350);
+
+        dlg.showAndWait().ifPresent(text -> {
+            try {
+                attachment.setDescription(text.trim());
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    trailerService.getTrailerById(trailer.getId()).map(Trailer::getAttachments).orElse(java.util.List.of()));
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
+    private void downloadAttachment(TrailerAttachment attachment) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Сохранить файл PDF");
+        fileChooser.setInitialFileName(attachment.getFilename());
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"));
+
+        Stage stage = (Stage) view.getScene().getWindow();
+        File file = fileChooser.showSaveDialog(stage);
+
+        if (file != null) {
+            try {
+                byte[] data = attachmentRepository.findFileDataById(attachment.getId());
+                Files.write(file.toPath(), data);
+                showAlert("Успех", "Файл сохранён как:\n" + file.getAbsolutePath(), Alert.AlertType.INFORMATION);
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить файл: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        }
+    }
+
+    private void deleteAttachment(TrailerAttachment attachment, ObservableList<TrailerAttachment> attachmentList) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Подтверждение");
+        confirm.setHeaderText("Вы уверены, что хотите удалить это вложение?");
+        confirm.setContentText("Файл: " + attachment.getFilename());
+
+        confirm.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    attachmentRepository.delete(attachment);
+                    attachmentList.remove(attachment);
+                    showAlert("Успех", "Вложение удалено", Alert.AlertType.INFORMATION);
+                } catch (Exception e) {
+                    showAlert("Ошибка", "Не удалось удалить вложение: " + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
+    }
+
+    private void editExpirationDate(TrailerAttachment attachment, ObservableList<TrailerAttachment> attachmentList, Trailer trailer) {
+        Dialog<LocalDate> dlg = new Dialog<>();
+        dlg.setTitle("Дата окончания документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+
+        ButtonType saveType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType clearType = new ButtonType("Убрать дату", ButtonBar.ButtonData.LEFT);
+        dlg.getDialogPane().getButtonTypes().addAll(saveType, clearType, ButtonType.CANCEL);
+
+        DatePicker datePicker = new DatePicker(attachment.getExpirationDate());
+        VBox content = new VBox(10, new Label("Дата окончания:"), datePicker);
+        content.setPadding(new Insets(10));
+        dlg.getDialogPane().setContent(content);
+
+        dlg.setResultConverter(btn -> {
+            if (btn == saveType) return datePicker.getValue();
+            if (btn == clearType) return LocalDate.MIN;
+            return null;
+        });
+
+        dlg.showAndWait().ifPresent(date -> {
+            try {
+                attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    trailerService.getTrailerById(trailer.getId()).map(Trailer::getAttachments).orElse(java.util.List.of()));
+                refreshData();
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
+    private static String getExpirationStyle(java.util.List<TrailerAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) return "";
+        long minDays = Long.MAX_VALUE;
+        for (TrailerAttachment a : attachments) {
+            if (a.getExpirationDate() != null) {
+                long days = ChronoUnit.DAYS.between(LocalDate.now(), a.getExpirationDate());
+                if (days < minDays) minDays = days;
+            }
+        }
+        if (minDays == Long.MAX_VALUE) return "";
+        if (minDays <= 7) return "-fx-background-color: #ffcdd2;";
+        if (minDays <= 30) return "-fx-background-color: #fff9c4;";
+        return "";
     }
 
     private static boolean contains(String value, String search) {

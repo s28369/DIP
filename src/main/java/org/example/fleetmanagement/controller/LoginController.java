@@ -33,8 +33,6 @@ public class LoginController {
      */
     @FXML
     public void initialize() {
-        usernameField.setText("admin");
-        passwordField.setText("admin123");
     }
     
     /**

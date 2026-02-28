@@ -73,26 +73,5 @@
         </font>
     </Button>
     
-    <!-- Informacje testowe -->
-    <VBox spacing="5" style="-fx-background-color: #ecf0f1; -fx-padding: 10; -fx-background-radius: 5;">
-        <Label text="Тестовые данные:" 
-               style="-fx-text-fill: #7f8c8d; -fx-font-weight: bold;">
-            <font>
-                <Font size="11"/>
-            </font>
-        </Label>
-        <Label text="Администратор: admin / admin123" 
-               style="-fx-text-fill: #7f8c8d;">
-            <font>
-                <Font size="10"/>
-            </font>
-        </Label>
-        <Label text="Логист: logistyk / logistyk123" 
-               style="-fx-text-fill: #7f8c8d;">
-            <font>
-                <Font size="10"/>
-            </font>
-        </Label>
-    </VBox>
     
 </VBox>

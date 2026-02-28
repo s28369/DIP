@@ -35,6 +35,9 @@ public class Trailer {
     @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<TrailerNote> notes = new ArrayList<>();
 
+    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<TrailerAttachment> attachments = new ArrayList<>();
+
     public Trailer() {
     }
 
@@ -96,5 +99,22 @@ public class Trailer {
 
     public int getNoteCount() {
         return notes != null ? notes.size() : 0;
+    }
+
+    public List<TrailerAttachment> getAttachments() { return attachments; }
+    public void setAttachments(List<TrailerAttachment> attachments) { this.attachments = attachments; }
+
+    public void addAttachment(TrailerAttachment attachment) {
+        attachments.add(attachment);
+        attachment.setTrailer(this);
+    }
+
+    public void removeAttachment(TrailerAttachment attachment) {
+        attachments.remove(attachment);
+        attachment.setTrailer(null);
+    }
+
+    public int getAttachmentCount() {
+        return attachments != null ? attachments.size() : 0;
     }
 }

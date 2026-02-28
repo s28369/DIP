@@ -22,7 +22,9 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 /**
  * Контроллер управления представлением автопарка грузовиков
@@ -51,7 +53,7 @@ public class TruckManagementController {
         view = new VBox(10);
         view.setPadding(new Insets(15));
 
-        Label titleLabel = new Label("Управление автопарком");
+        Label titleLabel = new Label("Тягачи");
         titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
 
         Button addButton = new Button("Добавить грузовик");
@@ -135,6 +137,24 @@ public class TruckManagementController {
         locationColumn.setPrefWidth(180);
 
         tableView.getColumns().addAll(registrationColumn, brandColumn, countryColumn, statusColumn, locationColumn);
+
+        tableView.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Truck item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                } else {
+                    setStyle(getExpirationStyle(item.getAttachments()));
+                }
+            }
+        });
+
+        tableView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && tableView.getSelectionModel().getSelectedItem() != null) {
+                showAttachmentsDialog();
+            }
+        });
 
         view.getChildren().addAll(titleLabel, buttonBox, searchBox, tableView);
         VBox.setVgrow(tableView, javafx.scene.layout.Priority.ALWAYS);
@@ -396,7 +416,33 @@ public class TruckManagementController {
         });
         dateCol.setPrefWidth(120);
         
-        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, sizeCol, dateCol);
+        TableColumn<TruckAttachment, String> expCol = new TableColumn<>("Дата окончания");
+        expCol.setCellValueFactory(cellData -> {
+            LocalDate exp = cellData.getValue().getExpirationDate();
+            return new SimpleStringProperty(exp != null ? exp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "—");
+        });
+        expCol.setPrefWidth(120);
+
+        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, sizeCol, dateCol, expCol);
+
+        attachmentTable.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(TruckAttachment item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.getExpirationDate() == null) {
+                    setStyle("");
+                } else {
+                    long days = ChronoUnit.DAYS.between(LocalDate.now(), item.getExpirationDate());
+                    if (days <= 7) {
+                        setStyle("-fx-background-color: #ffcdd2;");
+                    } else if (days <= 30) {
+                        setStyle("-fx-background-color: #fff9c4;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
 
         Button addBtn = new Button("Добавить PDF");
         addBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
@@ -416,6 +462,28 @@ public class TruckManagementController {
             }
         });
         
+        Button editDescBtn = new Button("Изменить описание");
+        editDescBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white;");
+        editDescBtn.setOnAction(e -> {
+            TruckAttachment selected = attachmentTable.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                editAttachmentDescription(selected, attachmentList, truck);
+            } else {
+                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+            }
+        });
+
+        Button expDateBtn = new Button("Дата окончания");
+        expDateBtn.setStyle("-fx-background-color: #16a085; -fx-text-fill: white;");
+        expDateBtn.setOnAction(e -> {
+            TruckAttachment selected = attachmentTable.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                editExpirationDate(selected, attachmentList, truck);
+            } else {
+                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+            }
+        });
+        
         Button deleteBtn = new Button("Удалить вложение");
         deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
         deleteBtn.setOnAction(e -> {
@@ -428,7 +496,7 @@ public class TruckManagementController {
             }
         });
         
-        HBox buttonBox = new HBox(10, addBtn, downloadBtn, deleteBtn);
+        HBox buttonBox = new HBox(10, addBtn, downloadBtn, editDescBtn, expDateBtn, deleteBtn);
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
         
         VBox content = new VBox(10);
@@ -451,46 +519,85 @@ public class TruckManagementController {
      */
     private void addAttachmentToTruck(Truck truck, ObservableList<TruckAttachment> attachmentList) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файл PDF");
+        fileChooser.setTitle("Выберите файлы PDF");
         fileChooser.getExtensionFilters().add(
             new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
-        File file = fileChooser.showOpenDialog(stage);
+        java.util.List<File> files = fileChooser.showOpenMultipleDialog(stage);
         
-        if (file != null) {
-            TextInputDialog descDialog = new TextInputDialog();
-            descDialog.setTitle("Описание вложения");
-            descDialog.setHeaderText("Добавьте описание файла (необязательно)");
-            descDialog.setContentText("Описание:");
-            
-            String description = descDialog.showAndWait().orElse("");
-            
-            try {
-                byte[] fileData = Files.readAllBytes(file.toPath());
-                
-                TruckAttachment attachment = new TruckAttachment(
-                    file.getName(),
-                    description,
-                    fileData,
-                    truck
-                );
-                
-                attachmentRepository.save(attachment);
-                attachmentList.add(attachment);
-                
-                showAlert("Успех", "Файл '" + file.getName() + "' добавлен", Alert.AlertType.INFORMATION);
-                
-            } catch (IOException e) {
-                showAlert("Ошибка", "Не удалось прочитать файл: " + e.getMessage(), Alert.AlertType.ERROR);
+        if (files != null && !files.isEmpty()) {
+            int added = 0;
+            for (File file : files) {
+                try {
+                    byte[] fileData = Files.readAllBytes(file.toPath());
+                    TruckAttachment attachment = new TruckAttachment(file.getName(), "", fileData, truck);
+                    attachmentRepository.save(attachment);
+                    attachmentList.add(attachment);
+                    added++;
+                } catch (IOException e) {
+                    showAlert("Ошибка", "Не удалось прочитать файл: " + file.getName() + "\n" + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+            if (added > 0) {
+                showAlert("Успех", "Добавлено файлов: " + added, Alert.AlertType.INFORMATION);
             }
         }
     }
     
-    /**
-     * Загружает вложение и сохраняет на диск
-     */
+    private void editAttachmentDescription(TruckAttachment attachment, ObservableList<TruckAttachment> attachmentList, Truck truck) {
+        TextInputDialog dlg = new TextInputDialog(attachment.getDescription() != null ? attachment.getDescription() : "");
+        dlg.setTitle("Описание документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+        dlg.setContentText("Описание:");
+        dlg.getEditor().setPrefWidth(350);
+        
+        dlg.showAndWait().ifPresent(text -> {
+            try {
+                attachment.setDescription(text.trim());
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.List.of()));
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+    
+    private void editExpirationDate(TruckAttachment attachment, ObservableList<TruckAttachment> attachmentList, Truck truck) {
+        Dialog<LocalDate> dlg = new Dialog<>();
+        dlg.setTitle("Дата окончания документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+
+        ButtonType saveType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType clearType = new ButtonType("Убрать дату", ButtonBar.ButtonData.LEFT);
+        dlg.getDialogPane().getButtonTypes().addAll(saveType, clearType, ButtonType.CANCEL);
+
+        DatePicker datePicker = new DatePicker(attachment.getExpirationDate());
+        VBox content = new VBox(10, new Label("Дата окончания:"), datePicker);
+        content.setPadding(new Insets(10));
+        dlg.getDialogPane().setContent(content);
+
+        dlg.setResultConverter(btn -> {
+            if (btn == saveType) return datePicker.getValue();
+            if (btn == clearType) return LocalDate.MIN;
+            return null;
+        });
+
+        dlg.showAndWait().ifPresent(date -> {
+            try {
+                attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.List.of()));
+                refreshData();
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
     private void downloadAttachment(TruckAttachment attachment) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Сохранить файл PDF");
@@ -504,10 +611,11 @@ public class TruckManagementController {
         
         if (file != null) {
             try {
-                Files.write(file.toPath(), attachment.getFileData());
+                byte[] data = attachmentRepository.findFileDataById(attachment.getId());
+                Files.write(file.toPath(), data);
                 showAlert("Успех", "Файл сохранён как:\n" + file.getAbsolutePath(), 
                     Alert.AlertType.INFORMATION);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить файл: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         }
@@ -538,6 +646,21 @@ public class TruckManagementController {
     /**
      * Отображает диалоговое окно с сообщением
      */
+    private static String getExpirationStyle(java.util.List<TruckAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) return "";
+        long minDays = Long.MAX_VALUE;
+        for (TruckAttachment a : attachments) {
+            if (a.getExpirationDate() != null) {
+                long days = ChronoUnit.DAYS.between(LocalDate.now(), a.getExpirationDate());
+                if (days < minDays) minDays = days;
+            }
+        }
+        if (minDays == Long.MAX_VALUE) return "";
+        if (minDays <= 7) return "-fx-background-color: #ffcdd2;";
+        if (minDays <= 30) return "-fx-background-color: #fff9c4;";
+        return "";
+    }
+
     private static boolean contains(String value, String search) {
         return value != null && value.toLowerCase().contains(search);
     }

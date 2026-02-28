@@ -149,6 +149,12 @@ public class DriverManagementController {
 
         tableView.getColumns().addAll(nameCol, phonesCol, statusCol);
 
+        tableView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && tableView.getSelectionModel().getSelectedItem() != null) {
+                showDriverDocumentsDialog();
+            }
+        });
+
         view.getChildren().addAll(titleLabel, buttonBox, searchBox, tableView);
         VBox.setVgrow(tableView, Priority.ALWAYS);
     }

@@ -1,6 +1,7 @@
 package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -21,6 +22,7 @@ public class TripAttachment {
     private String description;
     
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     @Column(name = "file_data", nullable = false, columnDefinition = "LONGBLOB")
     private byte[] fileData;
     
@@ -30,12 +32,13 @@ public class TripAttachment {
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
     
+    @Column(name = "expiration_date")
+    private LocalDate expirationDate;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trip_id", nullable = false)
     private Trip trip;
-    
 
-    
     public TripAttachment() {
         this.uploadedAt = LocalDateTime.now();
     }
@@ -100,6 +103,9 @@ public class TripAttachment {
         this.uploadedAt = uploadedAt;
     }
     
+    public LocalDate getExpirationDate() { return expirationDate; }
+    public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
+
     public Trip getTrip() {
         return trip;
     }
@@ -108,9 +114,6 @@ public class TripAttachment {
         this.trip = trip;
     }
     
-    /**
-     * Возвращает размер файла в удобочитаемом формате
-     */
     public String getFileSizeFormatted() {
         if (fileSize == null) return "0 B";
         if (fileSize < 1024) return fileSize + " B";

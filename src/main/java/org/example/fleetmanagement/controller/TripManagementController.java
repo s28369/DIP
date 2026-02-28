@@ -23,7 +23,9 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Component
@@ -227,14 +229,34 @@ public class TripManagementController {
                 if (empty || trip == null) {
                     setStyle("");
                 } else {
-                    switch (trip.getStatus()) {
-                        case PLANNED -> setStyle("-fx-background-color: #fff9c4;");
-                        case IN_PROGRESS -> setStyle("-fx-background-color: #c8e6c9;");
-                        case COMPLETED -> setStyle("-fx-background-color: #e0e0e0;");
-                        case CANCELLED -> setStyle("-fx-background-color: #ffcdd2;");
-                        default -> setStyle("");
+                    String base;
+                    String expStyle = getAttachmentExpirationStyle(trip.getAttachments());
+                    if (!expStyle.isEmpty()) {
+                        base = expStyle;
+                    } else {
+                        base = switch (trip.getStatus()) {
+                            case PLANNED -> "-fx-background-color: #fff9c4;";
+                            case IN_PROGRESS -> "-fx-background-color: #c8e6c9;";
+                            case COMPLETED -> "-fx-background-color: #e0e0e0;";
+                            case CANCELLED -> "-fx-background-color: #ffcdd2;";
+                        };
+                    }
+                    if (isSelected()) {
+                        setStyle(base + " -fx-text-fill: black; -fx-border-color: #2980b9; -fx-border-width: 2;");
+                    } else {
+                        setStyle(base);
                     }
                 }
+            }
+
+            {
+                selectedProperty().addListener((obs, wasSelected, isNowSelected) -> updateItem(getItem(), isEmpty()));
+            }
+        });
+
+        tableView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && tableView.getSelectionModel().getSelectedItem() != null) {
+                showAttachmentsDialog();
             }
         });
 
@@ -828,7 +850,33 @@ public class TripManagementController {
         });
         dateCol.setPrefWidth(120);
         
-        attachmentTable.getColumns().addAll(nameCol, descCol, sizeCol, dateCol);
+        TableColumn<TripAttachment, String> expCol = new TableColumn<>("Дата окончания");
+        expCol.setCellValueFactory(cellData -> {
+            LocalDate exp = cellData.getValue().getExpirationDate();
+            return new SimpleStringProperty(exp != null ? exp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "—");
+        });
+        expCol.setPrefWidth(120);
+
+        attachmentTable.getColumns().addAll(nameCol, descCol, sizeCol, dateCol, expCol);
+
+        attachmentTable.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(TripAttachment item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.getExpirationDate() == null) {
+                    setStyle("");
+                } else {
+                    long days = ChronoUnit.DAYS.between(LocalDate.now(), item.getExpirationDate());
+                    if (days <= 7) {
+                        setStyle("-fx-background-color: #ffcdd2;");
+                    } else if (days <= 30) {
+                        setStyle("-fx-background-color: #fff9c4;");
+                    } else {
+                        setStyle("");
+                    }
+                }
+            }
+        });
 
         Button addBtn = new Button("Добавить PDF");
         addBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
@@ -848,6 +896,28 @@ public class TripManagementController {
             }
         });
         
+        Button editDescBtn = new Button("Изменить описание");
+        editDescBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white;");
+        editDescBtn.setOnAction(e -> {
+            TripAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                editAttachmentDescription(sel, attachmentList, trip);
+            } else {
+                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+            }
+        });
+        
+        Button expDateBtn = new Button("Дата окончания");
+        expDateBtn.setStyle("-fx-background-color: #16a085; -fx-text-fill: white;");
+        expDateBtn.setOnAction(e -> {
+            TripAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) {
+                editTripExpirationDate(sel, attachmentList, trip);
+            } else {
+                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+            }
+        });
+        
         Button delBtn = new Button("Удалить вложение");
         delBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
         delBtn.setOnAction(e -> {
@@ -860,7 +930,7 @@ public class TripManagementController {
             }
         });
         
-        HBox buttonBox = new HBox(10, addBtn, downloadBtn, delBtn);
+        HBox buttonBox = new HBox(10, addBtn, downloadBtn, editDescBtn, expDateBtn, delBtn);
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
         
         VBox content = new VBox(10,
@@ -878,33 +948,85 @@ public class TripManagementController {
     
     private void addAttachmentToTrip(Trip trip, ObservableList<TripAttachment> attachmentList) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файл PDF");
+        fileChooser.setTitle("Выберите файлы PDF");
         fileChooser.getExtensionFilters().add(
             new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
-        File file = fileChooser.showOpenDialog(stage);
+        java.util.List<File> files = fileChooser.showOpenMultipleDialog(stage);
         
-        if (file != null) {
-            TextInputDialog descDialog = new TextInputDialog();
-            descDialog.setTitle("Описание документа");
-            descDialog.setHeaderText("Добавьте описание документа (необязательно)");
-            descDialog.setContentText("Описание:");
-            String description = descDialog.showAndWait().orElse("");
-            
-            try {
-                byte[] fileData = Files.readAllBytes(file.toPath());
-                TripAttachment attachment = new TripAttachment(file.getName(), description, fileData, trip);
-                attachmentRepository.save(attachment);
-                attachmentList.add(attachment);
-                showAlert("Успех", "Документ '" + file.getName() + "' добавлен", Alert.AlertType.INFORMATION);
-            } catch (IOException e) {
-                showAlert("Ошибка", "Не удалось прочитать файл: " + e.getMessage(), Alert.AlertType.ERROR);
+        if (files != null && !files.isEmpty()) {
+            int added = 0;
+            for (File file : files) {
+                try {
+                    byte[] fileData = Files.readAllBytes(file.toPath());
+                    TripAttachment attachment = new TripAttachment(file.getName(), "", fileData, trip);
+                    attachmentRepository.save(attachment);
+                    attachmentList.add(attachment);
+                    added++;
+                } catch (IOException e) {
+                    showAlert("Ошибка", "Не удалось прочитать файл: " + file.getName() + "\n" + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+            if (added > 0) {
+                showAlert("Успех", "Добавлено документов: " + added, Alert.AlertType.INFORMATION);
             }
         }
     }
     
+    private void editAttachmentDescription(TripAttachment attachment, ObservableList<TripAttachment> attachmentList, Trip trip) {
+        TextInputDialog dlg = new TextInputDialog(attachment.getDescription() != null ? attachment.getDescription() : "");
+        dlg.setTitle("Описание документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+        dlg.setContentText("Описание:");
+        dlg.getEditor().setPrefWidth(350);
+        
+        dlg.showAndWait().ifPresent(text -> {
+            try {
+                attachment.setDescription(text.trim());
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    tripService.getTripById(trip.getId()).map(Trip::getAttachments).orElse(java.util.List.of()));
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+    
+    private void editTripExpirationDate(TripAttachment attachment, ObservableList<TripAttachment> attachmentList, Trip trip) {
+        Dialog<LocalDate> dlg = new Dialog<>();
+        dlg.setTitle("Дата окончания документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+
+        ButtonType saveType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType clearType = new ButtonType("Убрать дату", ButtonBar.ButtonData.LEFT);
+        dlg.getDialogPane().getButtonTypes().addAll(saveType, clearType, ButtonType.CANCEL);
+
+        DatePicker datePicker = new DatePicker(attachment.getExpirationDate());
+        VBox dpContent = new VBox(10, new Label("Дата окончания:"), datePicker);
+        dpContent.setPadding(new Insets(10));
+        dlg.getDialogPane().setContent(dpContent);
+
+        dlg.setResultConverter(btn -> {
+            if (btn == saveType) return datePicker.getValue();
+            if (btn == clearType) return LocalDate.MIN;
+            return null;
+        });
+
+        dlg.showAndWait().ifPresent(date -> {
+            try {
+                attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    tripService.getTripById(trip.getId()).map(Trip::getAttachments).orElse(java.util.List.of()));
+                refreshData();
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
     private void downloadAttachment(TripAttachment attachment) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Сохранить документ PDF");
@@ -916,9 +1038,10 @@ public class TripManagementController {
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
             try {
-                Files.write(file.toPath(), attachment.getFileData());
+                byte[] data = attachmentRepository.findFileDataById(attachment.getId());
+                Files.write(file.toPath(), data);
                 showAlert("Успех", "Документ сохранён как:\n" + file.getAbsolutePath(), Alert.AlertType.INFORMATION);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить файл: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         }
@@ -988,6 +1111,21 @@ public class TripManagementController {
         };
     }
     
+    private static String getAttachmentExpirationStyle(List<TripAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) return "";
+        long minDays = Long.MAX_VALUE;
+        for (TripAttachment a : attachments) {
+            if (a.getExpirationDate() != null) {
+                long days = ChronoUnit.DAYS.between(LocalDate.now(), a.getExpirationDate());
+                if (days < minDays) minDays = days;
+            }
+        }
+        if (minDays == Long.MAX_VALUE) return "";
+        if (minDays <= 7) return "-fx-background-color: #ffcdd2;";
+        if (minDays <= 30) return "-fx-background-color: #fff9c4;";
+        return "";
+    }
+
     private static boolean contains(String value, String search) {
         return value != null && value.toLowerCase().contains(search);
     }

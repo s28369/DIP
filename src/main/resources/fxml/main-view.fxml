@@ -43,7 +43,7 @@
                 </padding>
             </Label>
             
-            <Button text="Управление автопарком" 
+            <Button text="Тягачи" 
                     onAction="#showTruckManagement"
                     prefWidth="180"
                     style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 13px;">
