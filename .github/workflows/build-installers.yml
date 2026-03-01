@@ -48,7 +48,6 @@ jobs:
             --app-version 1.0 ^
             --win-shortcut ^
             --win-menu ^
-            --win-console ^
             --win-dir-chooser ^
             --icon packaging\logo.ico ^
             --dest dist
