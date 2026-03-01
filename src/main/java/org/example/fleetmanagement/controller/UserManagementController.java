@@ -103,8 +103,12 @@ public class UserManagementController {
      * Обновляет данные в таблице
      */
     public void refreshData() {
-        userList.clear();
-        userList.addAll(userService.getAllUsers());
+        var data = userService.getAllUsers();
+        if (javafx.application.Platform.isFxApplicationThread()) {
+            userList.setAll(data);
+        } else {
+            javafx.application.Platform.runLater(() -> userList.setAll(data));
+        }
     }
     
     /**

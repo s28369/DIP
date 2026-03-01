@@ -183,8 +183,12 @@ public class TrailerManagementController {
     }
 
     public void refreshData() {
-        trailerList.clear();
-        trailerList.addAll(trailerService.getAllTrailers());
+        var data = trailerService.getAllTrailers();
+        if (javafx.application.Platform.isFxApplicationThread()) {
+            trailerList.setAll(data);
+        } else {
+            javafx.application.Platform.runLater(() -> trailerList.setAll(data));
+        }
     }
 
     // ---- Add ----

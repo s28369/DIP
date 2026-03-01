@@ -284,11 +284,12 @@ public class TripManagementController {
     }
     
     public void refreshData() {
-        tripList.clear();
-        if (showAllCheckbox.isSelected()) {
-            tripList.addAll(tripService.getAllTrips());
+        boolean showAll = showAllCheckbox.isSelected();
+        var data = showAll ? tripService.getAllTrips() : tripService.getActiveTrips();
+        if (javafx.application.Platform.isFxApplicationThread()) {
+            tripList.setAll(data);
         } else {
-            tripList.addAll(tripService.getActiveTrips());
+            javafx.application.Platform.runLater(() -> tripList.setAll(data));
         }
     }
 

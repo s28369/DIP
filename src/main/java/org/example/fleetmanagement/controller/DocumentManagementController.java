@@ -165,8 +165,12 @@ public class DocumentManagementController {
      * Обновляет данные в таблице
      */
     public void refreshData() {
-        documentList.clear();
-        documentList.addAll(documentService.getAllDocuments());
+        var data = documentService.getAllDocuments();
+        if (javafx.application.Platform.isFxApplicationThread()) {
+            documentList.setAll(data);
+        } else {
+            javafx.application.Platform.runLater(() -> documentList.setAll(data));
+        }
     }
     
     /**

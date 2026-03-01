@@ -164,8 +164,12 @@ public class DriverManagementController {
     }
 
     public void refreshData() {
-        driverList.clear();
-        driverList.addAll(driverService.getAllDrivers());
+        var data = driverService.getAllDrivers();
+        if (javafx.application.Platform.isFxApplicationThread()) {
+            driverList.setAll(data);
+        } else {
+            javafx.application.Platform.runLater(() -> driverList.setAll(data));
+        }
     }
 
     // ---- Add ----

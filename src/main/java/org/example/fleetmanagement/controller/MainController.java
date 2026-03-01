@@ -1,16 +1,20 @@
 package org.example.fleetmanagement.controller;
 
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import org.example.fleetmanagement.FleetManagementApplication;
 import org.example.fleetmanagement.model.User;
 import org.example.fleetmanagement.service.AuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Главный контроллер приложения, управляющий представлениями
@@ -40,6 +44,9 @@ public class MainController {
     private final UserManagementController userManagementController;
     private final DriverManagementController driverManagementController;
     private final TripManagementController tripManagementController;
+
+    private static final long CACHE_TTL_MS = 30_000;
+    private final Map<String, Long> lastRefreshTime = new ConcurrentHashMap<>();
     
     @Autowired
     public MainController(
@@ -58,6 +65,30 @@ public class MainController {
         this.userManagementController = userManagementController;
         this.driverManagementController = driverManagementController;
         this.tripManagementController = tripManagementController;
+    }
+
+    private void showViewAsync(String key, javafx.scene.Parent view, Runnable refreshAction) {
+        contentArea.getChildren().clear();
+        contentArea.getChildren().add(view);
+
+        long now = System.currentTimeMillis();
+        Long last = lastRefreshTime.get(key);
+        if (last != null && (now - last) < CACHE_TTL_MS) {
+            return;
+        }
+
+        ProgressIndicator spinner = new ProgressIndicator();
+        spinner.setMaxSize(40, 40);
+        contentArea.getChildren().add(spinner);
+
+        Thread.ofVirtual().start(() -> {
+            try {
+                refreshAction.run();
+                lastRefreshTime.put(key, System.currentTimeMillis());
+            } finally {
+                Platform.runLater(() -> contentArea.getChildren().remove(spinner));
+            }
+        });
     }
     
     /**
@@ -102,91 +133,44 @@ public class MainController {
         };
     }
     
-    /**
-     * Отображает представление управления автопарком
-     */
     @FXML
     private void showTruckManagement() {
-        try {
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(truckManagementController.getView());
-            truckManagementController.refreshData();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        showViewAsync("trucks", truckManagementController.getView(),
+            truckManagementController::refreshData);
     }
     
     @FXML
     private void showTrailerManagement() {
-        try {
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(trailerManagementController.getView());
-            trailerManagementController.refreshData();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        showViewAsync("trailers", trailerManagementController.getView(),
+            trailerManagementController::refreshData);
     }
 
-    /**
-     * Отображает представление управления документами
-     */
     @FXML
     private void showDocumentManagement() {
-        try {
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(documentManagementController.getView());
-            documentManagementController.refreshData();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        showViewAsync("documents", documentManagementController.getView(),
+            documentManagementController::refreshData);
     }
     
-    /**
-     * Отображает представление управления водителями
-     */
     @FXML
     private void showDriverManagement() {
-        try {
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(driverManagementController.getView());
-            driverManagementController.refreshData();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        showViewAsync("drivers", driverManagementController.getView(),
+            driverManagementController::refreshData);
     }
     
-    /**
-     * Отображает представление активных рейсов
-     */
     @FXML
     private void showTripManagement() {
-        try {
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(tripManagementController.getView());
-            tripManagementController.refreshData();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        showViewAsync("trips", tripManagementController.getView(),
+            tripManagementController::refreshData);
     }
     
-    /**
-     * Отображает панель администратора — управление пользователями
-     */
     @FXML
     private void showUserManagement() {
-        // Проверка прав доступа
         if (!authenticationService.isLoggedIn() || 
             authenticationService.getCurrentUser().getRole() != User.UserRole.ADMINISTRATOR) {
             return;
         }
-        
-        try {
-            contentArea.getChildren().clear();
-            contentArea.getChildren().add(userManagementController.getView());
-            userManagementController.refreshData();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        showViewAsync("users", userManagementController.getView(),
+            userManagementController::refreshData);
     }
     
     /**

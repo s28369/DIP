@@ -171,8 +171,12 @@ public class TruckManagementController {
      * Обновляет данные в таблице
      */
     public void refreshData() {
-        truckList.clear();
-        truckList.addAll(truckService.getAllTrucks());
+        var data = truckService.getAllTrucks();
+        if (javafx.application.Platform.isFxApplicationThread()) {
+            truckList.setAll(data);
+        } else {
+            javafx.application.Platform.runLater(() -> truckList.setAll(data));
+        }
     }
     
     /**
