@@ -58,7 +58,7 @@ public class UserManagementController {
         deleteButton.setOnAction(e -> handleDeleteUser());
         
         Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
         
         HBox buttonBox = new HBox(10, addButton, editButton, deleteButton, refreshButton);
 

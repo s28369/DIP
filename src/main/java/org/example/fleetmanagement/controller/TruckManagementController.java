@@ -72,7 +72,7 @@ public class TruckManagementController {
         deleteButton.setOnAction(e -> handleDeleteTruck());
 
         Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
 
         HBox buttonBox = new HBox(10, addButton, editButton, attachmentsButton, deleteButton, refreshButton);
 
@@ -81,7 +81,7 @@ public class TruckManagementController {
         searchField.setPrefWidth(250);
 
         ComboBox<String> searchParam = new ComboBox<>();
-        searchParam.getItems().addAll("Все", "Рег. номер", "Марка", "Страна", "Статус", "Местоположение");
+        searchParam.getItems().addAll("Все", "Рег. номер", "Марка", "Фирма", "Статус", "Местоположение");
         searchParam.setValue("Все");
 
         filteredList = new FilteredList<>(truckList, p -> true);
@@ -97,12 +97,12 @@ public class TruckManagementController {
             filteredList.setPredicate(truck -> switch (param) {
                 case "Рег. номер" -> contains(truck.getRegistrationNumber(), lower);
                 case "Марка" -> contains(truck.getBrand(), lower);
-                case "Страна" -> contains(truck.getRegistrationCountry(), lower);
+                case "Фирма" -> contains(truck.getCompany(), lower);
                 case "Статус" -> contains(truck.getStatus(), lower);
                 case "Местоположение" -> contains(truck.getCurrentLocation(), lower);
                 default -> contains(truck.getRegistrationNumber(), lower)
                         || contains(truck.getBrand(), lower)
-                        || contains(truck.getRegistrationCountry(), lower)
+                        || contains(truck.getCompany(), lower)
                         || contains(truck.getStatus(), lower)
                         || contains(truck.getCurrentLocation(), lower);
             });
@@ -124,9 +124,12 @@ public class TruckManagementController {
         brandColumn.setCellValueFactory(new PropertyValueFactory<>("brand"));
         brandColumn.setPrefWidth(180);
 
-        TableColumn<Truck, String> countryColumn = new TableColumn<>("Страна регистрации");
-        countryColumn.setCellValueFactory(new PropertyValueFactory<>("registrationCountry"));
-        countryColumn.setPrefWidth(150);
+        TableColumn<Truck, String> companyColumn = new TableColumn<>("Фирма");
+        companyColumn.setCellValueFactory(cellData -> {
+            String c = cellData.getValue().getCompany();
+            return new SimpleStringProperty(c != null ? c : "—");
+        });
+        companyColumn.setPrefWidth(120);
 
         TableColumn<Truck, String> statusColumn = new TableColumn<>("Статус");
         statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
@@ -136,7 +139,7 @@ public class TruckManagementController {
         locationColumn.setCellValueFactory(new PropertyValueFactory<>("currentLocation"));
         locationColumn.setPrefWidth(180);
 
-        tableView.getColumns().addAll(registrationColumn, brandColumn, countryColumn, statusColumn, locationColumn);
+        tableView.getColumns().addAll(registrationColumn, brandColumn, companyColumn, statusColumn, locationColumn);
 
         tableView.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -204,8 +207,8 @@ public class TruckManagementController {
         TextField brandField = new TextField();
         brandField.setPromptText("Марка (напр. Volvo FH16)");
 
-        ComboBox<String> countryCombo = createEditableComboBox(
-                "Польша", "Беларусь", "Чехия", "РФ");
+        ComboBox<String> companyCombo = createEditableComboBox(
+                Truck.COMPANY_MTG, Truck.COMPANY_APA, Truck.COMPANY_ABSOLUT);
 
         ComboBox<String> statusCombo = createEditableComboBox(
                 Truck.STATUS_AVAILABLE, Truck.STATUS_ON_TRIP, Truck.STATUS_MAINTENANCE);
@@ -218,7 +221,7 @@ public class TruckManagementController {
         content.getChildren().addAll(
             new Label("Регистрационный номер:"), registrationField,
             new Label("Марка:"), brandField,
-            new Label("Страна регистрации:"), countryCombo,
+            new Label("Фирма:"), companyCombo,
             new Label("Статус:"), statusCombo,
             new Label("Местоположение:"), locationField
         );
@@ -245,8 +248,8 @@ public class TruckManagementController {
                 Truck truck = new Truck();
                 truck.setRegistrationNumber(registrationField.getText().trim());
                 truck.setBrand(brandField.getText().trim());
-                String country = countryCombo.getEditor().getText();
-                truck.setRegistrationCountry(country != null ? country.trim() : "");
+                String company = companyCombo.getEditor().getText();
+                truck.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
                 String status = statusCombo.getEditor().getText();
                 truck.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Truck.STATUS_AVAILABLE);
                 truck.setCurrentLocation(locationField.getText().trim());
@@ -255,16 +258,10 @@ public class TruckManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(truck -> {
-            try {
-                truckService.addTruck(truck);
-                refreshData();
-                showAlert("Успех", "Грузовик добавлен", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось добавить грузовик: " + e.getMessage(),
-                    Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(truck -> runAsync(() -> {
+            truckService.addTruck(truck);
+            refreshData();
+        }, "Грузовик добавлен", "Не удалось добавить грузовик"));
     }
     
     private void showEditTruckDialog() {
@@ -285,10 +282,10 @@ public class TruckManagementController {
         TextField registrationField = new TextField(selectedTruck.getRegistrationNumber());
         TextField brandField = new TextField(selectedTruck.getBrand());
 
-        ComboBox<String> countryCombo = createEditableComboBox(
-                "Польша", "Беларусь", "Чехия", "РФ");
-        if (selectedTruck.getRegistrationCountry() != null) {
-            countryCombo.setValue(selectedTruck.getRegistrationCountry());
+        ComboBox<String> companyCombo = createEditableComboBox(
+                Truck.COMPANY_MTG, Truck.COMPANY_APA, Truck.COMPANY_ABSOLUT);
+        if (selectedTruck.getCompany() != null) {
+            companyCombo.setValue(selectedTruck.getCompany());
         }
 
         ComboBox<String> statusCombo = createEditableComboBox(
@@ -302,7 +299,7 @@ public class TruckManagementController {
         content.getChildren().addAll(
             new Label("Регистрационный номер:"), registrationField,
             new Label("Марка:"), brandField,
-            new Label("Страна регистрации:"), countryCombo,
+            new Label("Фирма:"), companyCombo,
             new Label("Статус:"), statusCombo,
             new Label("Местоположение:"), locationField
         );
@@ -315,8 +312,8 @@ public class TruckManagementController {
             if (dialogButton == saveButtonType) {
                 selectedTruck.setRegistrationNumber(registrationField.getText().trim());
                 selectedTruck.setBrand(brandField.getText().trim());
-                String country = countryCombo.getEditor().getText();
-                selectedTruck.setRegistrationCountry(country != null ? country.trim() : "");
+                String company = companyCombo.getEditor().getText();
+                selectedTruck.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
                 String status = statusCombo.getEditor().getText();
                 selectedTruck.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Truck.STATUS_AVAILABLE);
                 selectedTruck.setCurrentLocation(locationField.getText().trim());
@@ -325,16 +322,10 @@ public class TruckManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(truck -> {
-            try {
-                truckService.updateTruck(truck);
-                refreshData();
-                showAlert("Успех", "Данные грузовика обновлены", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось обновить грузовик: " + e.getMessage(),
-                    Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(truck -> runAsync(() -> {
+            truckService.updateTruck(truck);
+            refreshData();
+        }, "Данные грузовика обновлены", "Не удалось обновить грузовик"));
     }
     
     /**
@@ -356,14 +347,10 @@ public class TruckManagementController {
         
         confirmAlert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
+                runAsync(() -> {
                     truckService.deleteTruck(selectedTruck.getId());
                     refreshData();
-                    showAlert("Успех", "Грузовик удалён", Alert.AlertType.INFORMATION);
-                } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить грузовик: " + e.getMessage(), 
-                        Alert.AlertType.ERROR);
-                }
+                }, "Грузовик удалён", "Не удалось удалить грузовик");
             }
         });
     }
@@ -427,7 +414,7 @@ public class TruckManagementController {
         });
         expCol.setPrefWidth(120);
 
-        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, sizeCol, dateCol, expCol);
+        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, dateCol, expCol, sizeCol);
 
         attachmentTable.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -523,9 +510,11 @@ public class TruckManagementController {
      */
     private void addAttachmentToTruck(Truck truck, ObservableList<TruckAttachment> attachmentList) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файлы PDF");
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        fileChooser.setTitle("Выберите файлы");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
@@ -562,7 +551,7 @@ public class TruckManagementController {
                 attachment.setDescription(text.trim());
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.Set.of())));
             } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
             }
@@ -594,7 +583,7 @@ public class TruckManagementController {
                 attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.Set.of())));
                 refreshData();
             } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
@@ -604,16 +593,20 @@ public class TruckManagementController {
 
     private void downloadAttachment(TruckAttachment attachment) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Сохранить файл PDF");
+        fileChooser.setTitle("Сохранить файл");
         fileChooser.setInitialFileName(attachment.getFilename());
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        String ext = getExtension(attachment.getFilename());
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(ext.toUpperCase() + " файлы", "*." + ext),
+            new FileChooser.ExtensionFilter("Все файлы", "*.*")
         );
-        
+        fileChooser.setSelectedExtensionFilter(fileChooser.getExtensionFilters().get(0));
+
         Stage stage = (Stage) view.getScene().getWindow();
         File file = fileChooser.showSaveDialog(stage);
-        
+
         if (file != null) {
+            file = ensureExtension(file, ext);
             try {
                 byte[] data = attachmentRepository.findFileDataById(attachment.getId());
                 Files.write(file.toPath(), data);
@@ -650,7 +643,7 @@ public class TruckManagementController {
     /**
      * Отображает диалоговое окно с сообщением
      */
-    private static String getExpirationStyle(java.util.List<TruckAttachment> attachments) {
+    private static String getExpirationStyle(java.util.Collection<TruckAttachment> attachments) {
         if (attachments == null || attachments.isEmpty()) return "";
         long minDays = Long.MAX_VALUE;
         for (TruckAttachment a : attachments) {
@@ -665,8 +658,33 @@ public class TruckManagementController {
         return "";
     }
 
+    private void runAsync(Runnable task, String successMsg, String errorPrefix) {
+        Thread.ofVirtual().start(() -> {
+            try {
+                task.run();
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Успех", successMsg, Alert.AlertType.INFORMATION));
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Ошибка", errorPrefix + ": " + e.getMessage(), Alert.AlertType.ERROR));
+            }
+        });
+    }
+
     private static boolean contains(String value, String search) {
         return value != null && value.toLowerCase().contains(search);
+    }
+
+    private static String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "pdf";
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private static java.io.File ensureExtension(java.io.File file, String ext) {
+        String name = file.getName();
+        if (name.contains(".") && name.toLowerCase().endsWith("." + ext.toLowerCase())) return file;
+        if (!name.contains(".")) return new java.io.File(file.getParent(), name + "." + ext);
+        return file;
     }
 
     private void showAlert(String title, String content, Alert.AlertType type) {

@@ -63,7 +63,7 @@ public class DocumentManagementController {
         deleteButton.setOnAction(e -> handleDeleteDocument());
         
         Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
         
         Button expiringButton = new Button("Истекающие документы");
         expiringButton.setOnAction(e -> showExpiringDocuments());
@@ -309,9 +309,11 @@ public class DocumentManagementController {
         }
         
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файл PDF");
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        fileChooser.setTitle("Выберите файл");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
@@ -348,16 +350,20 @@ public class DocumentManagementController {
         }
         
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Сохранить файл PDF");
+        fileChooser.setTitle("Сохранить файл");
         fileChooser.setInitialFileName(selectedDocument.getPdfFilename());
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        String ext = getExtension(selectedDocument.getPdfFilename());
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(ext.toUpperCase() + " файлы", "*." + ext),
+            new FileChooser.ExtensionFilter("Все файлы", "*.*")
         );
-        
+        fileChooser.setSelectedExtensionFilter(fileChooser.getExtensionFilters().get(0));
+
         Stage stage = (Stage) view.getScene().getWindow();
         File file = fileChooser.showSaveDialog(stage);
-        
+
         if (file != null) {
+            file = ensureExtension(file, ext);
             try {
                 Files.write(file.toPath(), selectedDocument.getPdfData());
                 showAlert("Успех", "Файл PDF сохранён:\n" + file.getAbsolutePath(), Alert.AlertType.INFORMATION);
@@ -367,9 +373,18 @@ public class DocumentManagementController {
         }
     }
     
-    /**
-     * Отображает диалоговое окно с сообщением
-     */
+    private static String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "pdf";
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private static File ensureExtension(File file, String ext) {
+        String name = file.getName();
+        if (name.contains(".") && name.toLowerCase().endsWith("." + ext.toLowerCase())) return file;
+        if (!name.contains(".")) return new File(file.getParent(), name + "." + ext);
+        return file;
+    }
+
     private static boolean contains(String value, String search) {
         return value != null && value.toLowerCase().contains(search);
     }

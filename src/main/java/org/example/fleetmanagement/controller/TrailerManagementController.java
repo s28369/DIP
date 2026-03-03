@@ -83,7 +83,7 @@ public class TrailerManagementController {
         deleteButton.setOnAction(e -> handleDelete());
 
         Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
 
         HBox buttonBox = new HBox(10, addButton, editButton, notesButton, attachmentsButton, deleteButton, refreshButton);
 
@@ -256,15 +256,10 @@ public class TrailerManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(trailer -> {
-            try {
-                trailerService.addTrailer(trailer);
-                refreshData();
-                showAlert("Успех", "Прицеп добавлен", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось добавить прицеп: " + e.getMessage(), Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(trailer -> runAsync(() -> {
+            trailerService.addTrailer(trailer);
+            refreshData();
+        }, "Прицеп добавлен", "Не удалось добавить прицеп"));
     }
 
     // ---- Edit ----
@@ -324,15 +319,10 @@ public class TrailerManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(trailer -> {
-            try {
-                trailerService.updateTrailer(trailer);
-                refreshData();
-                showAlert("Успех", "Данные прицепа обновлены", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось обновить прицеп: " + e.getMessage(), Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(trailer -> runAsync(() -> {
+            trailerService.updateTrailer(trailer);
+            refreshData();
+        }, "Данные прицепа обновлены", "Не удалось обновить прицеп"));
     }
 
     // ---- Delete ----
@@ -352,13 +342,10 @@ public class TrailerManagementController {
 
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
+                runAsync(() -> {
                     trailerService.deleteTrailer(selected.getId());
                     refreshData();
-                    showAlert("Успех", "Прицеп удалён", Alert.AlertType.INFORMATION);
-                } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить прицеп: " + e.getMessage(), Alert.AlertType.ERROR);
-                }
+                }, "Прицеп удалён", "Не удалось удалить прицеп");
             }
         });
     }
@@ -649,9 +636,11 @@ public class TrailerManagementController {
 
     private void addAttachmentToTrailer(Trailer trailer, ObservableList<TrailerAttachment> attachmentList) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файлы PDF");
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"));
+        fileChooser.setTitle("Выберите файлы");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png"));
 
         Stage stage = (Stage) view.getScene().getWindow();
         java.util.List<File> files = fileChooser.showOpenMultipleDialog(stage);
@@ -687,7 +676,7 @@ public class TrailerManagementController {
                 attachment.setDescription(text.trim());
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    trailerService.getTrailerById(trailer.getId()).map(Trailer::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(trailerService.getTrailerById(trailer.getId()).map(Trailer::getAttachments).orElse(java.util.Set.of())));
             } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
             }
@@ -696,15 +685,20 @@ public class TrailerManagementController {
 
     private void downloadAttachment(TrailerAttachment attachment) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Сохранить файл PDF");
+        fileChooser.setTitle("Сохранить файл");
         fileChooser.setInitialFileName(attachment.getFilename());
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"));
+        String ext = getExtension(attachment.getFilename());
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(ext.toUpperCase() + " файлы", "*." + ext),
+            new FileChooser.ExtensionFilter("Все файлы", "*.*")
+        );
+        fileChooser.setSelectedExtensionFilter(fileChooser.getExtensionFilters().get(0));
 
         Stage stage = (Stage) view.getScene().getWindow();
         File file = fileChooser.showSaveDialog(stage);
 
         if (file != null) {
+            file = ensureExtension(file, ext);
             try {
                 byte[] data = attachmentRepository.findFileDataById(attachment.getId());
                 Files.write(file.toPath(), data);
@@ -759,7 +753,7 @@ public class TrailerManagementController {
                 attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    trailerService.getTrailerById(trailer.getId()).map(Trailer::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(trailerService.getTrailerById(trailer.getId()).map(Trailer::getAttachments).orElse(java.util.Set.of())));
                 refreshData();
             } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
@@ -767,7 +761,7 @@ public class TrailerManagementController {
         });
     }
 
-    private static String getExpirationStyle(java.util.List<TrailerAttachment> attachments) {
+    private static String getExpirationStyle(java.util.Collection<TrailerAttachment> attachments) {
         if (attachments == null || attachments.isEmpty()) return "";
         long minDays = Long.MAX_VALUE;
         for (TrailerAttachment a : attachments) {
@@ -784,6 +778,31 @@ public class TrailerManagementController {
 
     private static boolean contains(String value, String search) {
         return value != null && value.toLowerCase().contains(search);
+    }
+
+    private void runAsync(Runnable task, String successMsg, String errorPrefix) {
+        Thread.ofVirtual().start(() -> {
+            try {
+                task.run();
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Успех", successMsg, Alert.AlertType.INFORMATION));
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Ошибка", errorPrefix + ": " + e.getMessage(), Alert.AlertType.ERROR));
+            }
+        });
+    }
+
+    private static String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "pdf";
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private static java.io.File ensureExtension(java.io.File file, String ext) {
+        String name = file.getName();
+        if (name.contains(".") && name.toLowerCase().endsWith("." + ext.toLowerCase())) return file;
+        if (!name.contains(".")) return new java.io.File(file.getParent(), name + "." + ext);
+        return file;
     }
 
     private void showAlert(String title, String content, Alert.AlertType type) {

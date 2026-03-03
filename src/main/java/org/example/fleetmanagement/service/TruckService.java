@@ -28,7 +28,7 @@ public class TruckService {
      * @return список всех грузовиков
      */
     public List<Truck> getAllTrucks() {
-        return truckRepository.findAll();
+        return truckRepository.findAllWithDetails();
     }
     
     /**
@@ -37,7 +37,7 @@ public class TruckService {
      * @return Optional с грузовиком, если существует
      */
     public Optional<Truck> getTruckById(Long id) {
-        return truckRepository.findById(id);
+        return truckRepository.findByIdWithDetails(id);
     }
     
     /**

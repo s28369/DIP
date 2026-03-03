@@ -47,6 +47,9 @@ public class MainController {
 
     private static final long CACHE_TTL_MS = 30_000;
     private final Map<String, Long> lastRefreshTime = new ConcurrentHashMap<>();
+    private static MainController instance;
+
+    public static MainController getInstance() { return instance; }
     
     @Autowired
     public MainController(
@@ -96,9 +99,14 @@ public class MainController {
      */
     @FXML
     public void initialize() {
+        instance = this;
         updateUserInfo();
         configureAdminAccess();
         showTruckManagement();
+    }
+
+    public void invalidateCache() {
+        lastRefreshTime.clear();
     }
     
     /**

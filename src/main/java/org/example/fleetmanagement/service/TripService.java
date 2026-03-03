@@ -36,11 +36,11 @@ public class TripService {
     }
     
     public List<Trip> getAllTrips() {
-        return tripRepository.findAll();
+        return tripRepository.findAllWithDetails();
     }
     
     public Optional<Trip> getTripById(Long id) {
-        return tripRepository.findById(id);
+        return tripRepository.findByIdWithDetails(id);
     }
     
     public List<Trip> getActiveTrips() {
@@ -55,8 +55,10 @@ public class TripService {
     
     public Trip createTrip(Trip trip) {
         Driver driver = trip.getDriver();
-        driver.setStatus(Driver.STATUS_ON_TRIP);
-        driverService.updateDriver(driver);
+        if (driver != null) {
+            driver.setStatus(Driver.STATUS_ON_TRIP);
+            driverService.updateDriver(driver);
+        }
 
         Truck truck = trip.getTruck();
         truck.setStatus(Truck.STATUS_ON_TRIP);
@@ -96,8 +98,10 @@ public class TripService {
         trip.setActualArrival(LocalDateTime.now());
 
         Driver driver = trip.getDriver();
-        driver.setStatus(Driver.STATUS_AVAILABLE);
-        driverService.updateDriver(driver);
+        if (driver != null) {
+            driver.setStatus(Driver.STATUS_AVAILABLE);
+            driverService.updateDriver(driver);
+        }
 
         Truck truck = trip.getTruck();
         truck.setStatus(Truck.STATUS_AVAILABLE);
@@ -122,8 +126,10 @@ public class TripService {
         trip.setStatus(Trip.TripStatus.CANCELLED);
 
         Driver driver = trip.getDriver();
-        driver.setStatus(Driver.STATUS_AVAILABLE);
-        driverService.updateDriver(driver);
+        if (driver != null) {
+            driver.setStatus(Driver.STATUS_AVAILABLE);
+            driverService.updateDriver(driver);
+        }
 
         Truck truck = trip.getTruck();
         truck.setStatus(Truck.STATUS_AVAILABLE);
@@ -145,8 +151,10 @@ public class TripService {
         if (trip.getStatus() == Trip.TripStatus.PLANNED ||
             trip.getStatus() == Trip.TripStatus.IN_PROGRESS) {
             Driver driver = trip.getDriver();
-            driver.setStatus(Driver.STATUS_AVAILABLE);
-            driverService.updateDriver(driver);
+            if (driver != null) {
+                driver.setStatus(Driver.STATUS_AVAILABLE);
+                driverService.updateDriver(driver);
+            }
 
             Truck truck = trip.getTruck();
             truck.setStatus(Truck.STATUS_AVAILABLE);

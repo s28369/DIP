@@ -105,7 +105,7 @@ public class TripManagementController {
         deleteButton.setOnAction(e -> handleDeleteTrip());
         
         Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
         
         HBox buttonBox1 = new HBox(10, addButton, editButton, startButton, completeButton, cancelButton);
         HBox buttonBox2 = new HBox(10, notesButton, attachmentsButton, customersButton, deleteButton, refreshButton);
@@ -169,14 +169,14 @@ public class TripManagementController {
         trailerCol.setCellValueFactory(cellData -> {
             Trailer trailer = cellData.getValue().getTrailer();
             return new SimpleStringProperty(trailer != null ?
-                trailer.getBrand() + " (" + trailer.getRegistrationNumber() + ")" : "-");
+                trailer.getBrand() + " (" + trailer.getRegistrationNumber() + ")" : "???");
         });
         trailerCol.setPrefWidth(170);
         
         TableColumn<Trip, String> driverCol = new TableColumn<>("Водитель");
         driverCol.setCellValueFactory(cellData -> {
             Driver driver = cellData.getValue().getDriver();
-            return new SimpleStringProperty(driver != null ? driver.getFullName() : "-");
+            return new SimpleStringProperty(driver != null ? driver.getFullName() : "???");
         });
         driverCol.setPrefWidth(130);
         
@@ -336,7 +336,7 @@ public class TripManagementController {
         content.getChildren().addAll(
             new Label("Машина:"), truckCombo,
             new Label("Прицеп (необязательно):"), trailerCombo,
-            new Label("Водитель:"), driverCombo,
+            new Label("Водитель (необязательно):"), driverCombo,
             new Label("Откуда:"), originField,
             new Label("Куда:"), destinationField,
             new Label("Товар:"), cargoField,
@@ -355,11 +355,6 @@ public class TripManagementController {
         createBtn.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
             if (truckCombo.getValue() == null) {
                 showAlert("Ошибка", "Выберите машину", Alert.AlertType.ERROR);
-                event.consume();
-                return;
-            }
-            if (driverCombo.getValue() == null) {
-                showAlert("Ошибка", "Выберите водителя", Alert.AlertType.ERROR);
                 event.consume();
                 return;
             }
@@ -390,15 +385,10 @@ public class TripManagementController {
             return null;
         });
         
-        dialog.showAndWait().ifPresent(trip -> {
-            try {
-                tripService.createTrip(trip);
-                refreshData();
-                showAlert("Успех", "Рейс создан", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось создать рейс: " + e.getMessage(), Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(trip -> runAsync(() -> {
+            tripService.createTrip(trip);
+            refreshData();
+        }, "Рейс создан", "Не удалось создать рейс"));
     }
 
     // ---- Edit Trip ----
@@ -450,15 +440,10 @@ public class TripManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(trip -> {
-            try {
-                tripService.updateTrip(trip);
-                refreshData();
-                showAlert("Успех", "Рейс обновлён", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось обновить рейс: " + e.getMessage(), Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(trip -> runAsync(() -> {
+            tripService.updateTrip(trip);
+            refreshData();
+        }, "Рейс обновлён", "Не удалось обновить рейс"));
     }
     
     // ---- Trip lifecycle ----
@@ -492,13 +477,10 @@ public class TripManagementController {
             showAlert("Ошибка", "Можно завершить только рейс в пути", Alert.AlertType.WARNING);
             return;
         }
-        try {
+        runAsync(() -> {
             tripService.completeTrip(selected.getId());
             refreshData();
-            showAlert("Успех", "Рейс завершён", Alert.AlertType.INFORMATION);
-        } catch (Exception e) {
-            showAlert("Ошибка", "Не удалось завершить рейс: " + e.getMessage(), Alert.AlertType.ERROR);
-        }
+        }, "Рейс завершён", "Не удалось завершить рейс");
     }
     
     private void handleCancelTrip() {
@@ -520,13 +502,10 @@ public class TripManagementController {
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
+                runAsync(() -> {
                     tripService.cancelTrip(selected.getId());
                     refreshData();
-                    showAlert("Успех", "Рейс отменён", Alert.AlertType.INFORMATION);
-                } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось отменить рейс: " + e.getMessage(), Alert.AlertType.ERROR);
-                }
+                }, "Рейс отменён", "Не удалось отменить рейс");
             }
         });
     }
@@ -545,13 +524,10 @@ public class TripManagementController {
         
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
+                runAsync(() -> {
                     tripService.deleteTrip(selected.getId());
                     refreshData();
-                    showAlert("Успех", "Рейс удалён", Alert.AlertType.INFORMATION);
-                } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить рейс: " + e.getMessage(), Alert.AlertType.ERROR);
-                }
+                }, "Рейс удалён", "Не удалось удалить рейс");
             }
         });
     }
@@ -949,9 +925,11 @@ public class TripManagementController {
     
     private void addAttachmentToTrip(Trip trip, ObservableList<TripAttachment> attachmentList) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файлы PDF");
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        fileChooser.setTitle("Выберите файлы");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
@@ -988,7 +966,7 @@ public class TripManagementController {
                 attachment.setDescription(text.trim());
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    tripService.getTripById(trip.getId()).map(Trip::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(tripService.getTripById(trip.getId()).map(Trip::getAttachments).orElse(java.util.Set.of())));
             } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
             }
@@ -1020,7 +998,7 @@ public class TripManagementController {
                 attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    tripService.getTripById(trip.getId()).map(Trip::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(tripService.getTripById(trip.getId()).map(Trip::getAttachments).orElse(java.util.Set.of())));
                 refreshData();
             } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
@@ -1030,14 +1008,19 @@ public class TripManagementController {
 
     private void downloadAttachment(TripAttachment attachment) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Сохранить документ PDF");
+        fileChooser.setTitle("Сохранить файл");
         fileChooser.setInitialFileName(attachment.getFilename());
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        String ext = getExtension(attachment.getFilename());
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(ext.toUpperCase() + " файлы", "*." + ext),
+            new FileChooser.ExtensionFilter("Все файлы", "*.*")
         );
+        fileChooser.setSelectedExtensionFilter(fileChooser.getExtensionFilters().get(0));
+
         Stage stage = (Stage) view.getScene().getWindow();
         File file = fileChooser.showSaveDialog(stage);
         if (file != null) {
+            file = ensureExtension(file, ext);
             try {
                 byte[] data = attachmentRepository.findFileDataById(attachment.getId());
                 Files.write(file.toPath(), data);
@@ -1112,7 +1095,7 @@ public class TripManagementController {
         };
     }
     
-    private static String getAttachmentExpirationStyle(List<TripAttachment> attachments) {
+    private static String getAttachmentExpirationStyle(java.util.Collection<TripAttachment> attachments) {
         if (attachments == null || attachments.isEmpty()) return "";
         long minDays = Long.MAX_VALUE;
         for (TripAttachment a : attachments) {
@@ -1146,6 +1129,31 @@ public class TripManagementController {
             case COMPLETED -> "Завершён";
             case CANCELLED -> "Отменён";
         };
+    }
+
+    private void runAsync(Runnable task, String successMsg, String errorPrefix) {
+        Thread.ofVirtual().start(() -> {
+            try {
+                task.run();
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Успех", successMsg, Alert.AlertType.INFORMATION));
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Ошибка", errorPrefix + ": " + e.getMessage(), Alert.AlertType.ERROR));
+            }
+        });
+    }
+
+    private static String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "pdf";
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private static java.io.File ensureExtension(java.io.File file, String ext) {
+        String name = file.getName();
+        if (name.contains(".") && name.toLowerCase().endsWith("." + ext.toLowerCase())) return file;
+        if (!name.contains(".")) return new java.io.File(file.getParent(), name + "." + ext);
+        return file;
     }
 
     private void showAlert(String title, String content, Alert.AlertType type) {

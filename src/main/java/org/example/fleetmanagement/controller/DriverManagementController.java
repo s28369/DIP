@@ -14,9 +14,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.example.fleetmanagement.model.Driver;
-import org.example.fleetmanagement.model.DriverDocument;
+import org.example.fleetmanagement.model.DriverAttachment;
 import org.example.fleetmanagement.model.DriverPhone;
-import org.example.fleetmanagement.service.DriverDocumentService;
+import org.example.fleetmanagement.repository.DriverAttachmentRepository;
 import org.example.fleetmanagement.service.DriverService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -25,21 +25,23 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 
 @Component
 public class DriverManagementController {
 
     private final DriverService driverService;
-    private final DriverDocumentService driverDocumentService;
+    private final DriverAttachmentRepository attachmentRepository;
     private final ObservableList<Driver> driverList = FXCollections.observableArrayList();
     private FilteredList<Driver> filteredList;
     private VBox view;
     private TableView<Driver> tableView;
 
     @Autowired
-    public DriverManagementController(DriverService driverService, DriverDocumentService driverDocumentService) {
+    public DriverManagementController(DriverService driverService, DriverAttachmentRepository attachmentRepository) {
         this.driverService = driverService;
-        this.driverDocumentService = driverDocumentService;
+        this.attachmentRepository = attachmentRepository;
         initializeView();
     }
 
@@ -74,7 +76,7 @@ public class DriverManagementController {
         documentsButton.setOnAction(e -> showDriverDocumentsDialog());
 
         Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
 
         HBox buttonBox = new HBox(10, addButton, editButton, deleteButton, documentsButton, refreshButton);
 
@@ -83,7 +85,7 @@ public class DriverManagementController {
         searchField.setPrefWidth(250);
 
         ComboBox<String> searchParam = new ComboBox<>();
-        searchParam.getItems().addAll("Все", "ФИО", "Статус");
+        searchParam.getItems().addAll("Все", "ФИО", "Фирма", "Статус");
         searchParam.setValue("Все");
 
         filteredList = new FilteredList<>(driverList, p -> true);
@@ -98,8 +100,10 @@ public class DriverManagementController {
             String lower = text.trim().toLowerCase();
             filteredList.setPredicate(d -> switch (param) {
                 case "ФИО" -> contains(d.getFullName(), lower);
+                case "Фирма" -> contains(d.getCompany(), lower);
                 case "Статус" -> contains(d.getStatus(), lower);
                 default -> contains(d.getFullName(), lower)
+                        || contains(d.getCompany(), lower)
                         || contains(d.getStatus(), lower);
             });
         };
@@ -115,6 +119,13 @@ public class DriverManagementController {
         TableColumn<Driver, String> nameCol = new TableColumn<>("ФИО");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("fullName"));
         nameCol.setPrefWidth(250);
+
+        TableColumn<Driver, String> companyCol = new TableColumn<>("Фирма");
+        companyCol.setCellValueFactory(cellData -> {
+            String c = cellData.getValue().getCompany();
+            return new SimpleStringProperty(c != null ? c : "—");
+        });
+        companyCol.setPrefWidth(120);
 
         TableColumn<Driver, String> phonesCol = new TableColumn<>("Номера телефонов");
         phonesCol.setCellValueFactory(cellData -> {
@@ -147,7 +158,19 @@ public class DriverManagementController {
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setPrefWidth(150);
 
-        tableView.getColumns().addAll(nameCol, phonesCol, statusCol);
+        tableView.getColumns().addAll(nameCol, companyCol, phonesCol, statusCol);
+
+        tableView.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(Driver item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setStyle("");
+                } else {
+                    setStyle(getExpirationStyle(item.getAttachments()));
+                }
+            }
+        });
 
         tableView.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2 && tableView.getSelectionModel().getSelectedItem() != null) {
@@ -185,12 +208,16 @@ public class DriverManagementController {
         TextField fullNameField = new TextField();
         fullNameField.setPromptText("ФИО (напр. Иванов Иван Иванович)");
 
+        ComboBox<String> companyCombo = createEditableComboBox(
+                Driver.COMPANY_MTG, Driver.COMPANY_APA, Driver.COMPANY_ABSOLUT);
+
         ComboBox<String> statusCombo = createEditableComboBox(
                 Driver.STATUS_AVAILABLE, Driver.STATUS_ON_TRIP, Driver.STATUS_MAINTENANCE);
         statusCombo.setValue(Driver.STATUS_AVAILABLE);
 
         VBox content = new VBox(10,
             new Label("ФИО:"), fullNameField,
+            new Label("Фирма:"), companyCombo,
             new Label("Статус:"), statusCombo
         );
         content.setPadding(new Insets(10));
@@ -209,6 +236,8 @@ public class DriverManagementController {
             if (btn == addButtonType) {
                 Driver d = new Driver();
                 d.setFullName(fullNameField.getText().trim());
+                String company = companyCombo.getEditor().getText();
+                d.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
                 String status = statusCombo.getEditor().getText();
                 d.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Driver.STATUS_AVAILABLE);
                 return d;
@@ -216,15 +245,10 @@ public class DriverManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(driver -> {
-            try {
-                driverService.addDriver(driver);
-                refreshData();
-                showAlert("Успех", "Водитель добавлен", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось добавить водителя: " + e.getMessage(), Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(driver -> runAsync(() -> {
+            driverService.addDriver(driver);
+            refreshData();
+        }, "Водитель добавлен", "Не удалось добавить водителя"));
     }
 
     // ---- Edit ----
@@ -245,12 +269,19 @@ public class DriverManagementController {
 
         TextField fullNameField = new TextField(selected.getFullName());
 
+        ComboBox<String> companyCombo = createEditableComboBox(
+                Driver.COMPANY_MTG, Driver.COMPANY_APA, Driver.COMPANY_ABSOLUT);
+        if (selected.getCompany() != null) {
+            companyCombo.setValue(selected.getCompany());
+        }
+
         ComboBox<String> statusCombo = createEditableComboBox(
                 Driver.STATUS_AVAILABLE, Driver.STATUS_ON_TRIP, Driver.STATUS_MAINTENANCE);
         statusCombo.setValue(selected.getStatus());
 
         VBox content = new VBox(10,
             new Label("ФИО:"), fullNameField,
+            new Label("Фирма:"), companyCombo,
             new Label("Статус:"), statusCombo
         );
         content.setPadding(new Insets(10));
@@ -260,6 +291,8 @@ public class DriverManagementController {
         dialog.setResultConverter(btn -> {
             if (btn == saveButtonType) {
                 selected.setFullName(fullNameField.getText().trim());
+                String company = companyCombo.getEditor().getText();
+                selected.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
                 String status = statusCombo.getEditor().getText();
                 selected.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Driver.STATUS_AVAILABLE);
                 return selected;
@@ -267,15 +300,10 @@ public class DriverManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(driver -> {
-            try {
-                driverService.updateDriver(driver);
-                refreshData();
-                showAlert("Успех", "Данные водителя обновлены", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось обновить водителя: " + e.getMessage(), Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(driver -> runAsync(() -> {
+            driverService.updateDriver(driver);
+            refreshData();
+        }, "Данные водителя обновлены", "Не удалось обновить водителя"));
     }
 
     // ---- Delete ----
@@ -299,13 +327,10 @@ public class DriverManagementController {
 
         confirm.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
+                runAsync(() -> {
                     driverService.deleteDriver(selected.getId());
                     refreshData();
-                    showAlert("Успех", "Водитель удалён", Alert.AlertType.INFORMATION);
-                } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить водителя: " + e.getMessage(), Alert.AlertType.ERROR);
-                }
+                }, "Водитель удалён", "Не удалось удалить водителя");
             }
         });
     }
@@ -328,6 +353,18 @@ public class DriverManagementController {
         numberCol.setPrefWidth(200);
 
         phoneTable.getColumns().addAll(countryCol, numberCol);
+
+        phoneTable.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                DriverPhone sel = phoneTable.getSelectionModel().getSelectedItem();
+                if (sel != null && sel.getPhoneNumber() != null) {
+                    javafx.scene.input.ClipboardContent cc = new javafx.scene.input.ClipboardContent();
+                    cc.putString(sel.getPhoneNumber());
+                    javafx.scene.input.Clipboard.getSystemClipboard().setContent(cc);
+                    showAlert("Скопировано", sel.getPhoneNumber(), Alert.AlertType.INFORMATION);
+                }
+            }
+        });
 
         Button addPhoneBtn = new Button("Добавить номер");
         addPhoneBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
@@ -491,7 +528,7 @@ public class DriverManagementController {
         });
     }
 
-    // ---- Documents dialog (kept from before) ----
+    // ---- Attachments dialog ----
 
     private void showDriverDocumentsDialog() {
         Driver selected = tableView.getSelectionModel().getSelectedItem();
@@ -500,221 +537,290 @@ public class DriverManagementController {
             return;
         }
 
-        ObservableList<DriverDocument> docList = FXCollections.observableArrayList();
-        docList.addAll(driverDocumentService.getDocumentsByDriver(selected));
+        Driver driver = driverService.getDriverById(selected.getId()).orElse(selected);
 
-        TableView<DriverDocument> docTable = new TableView<>();
-        docTable.setItems(docList);
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Документы");
+        dialog.setHeaderText("Водитель: " + driver.getFullName());
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
-        TableColumn<DriverDocument, Long> idCol = new TableColumn<>("ID");
+        TableView<DriverAttachment> attachmentTable = new TableView<>();
+        ObservableList<DriverAttachment> attachmentList = FXCollections.observableArrayList(driver.getAttachments());
+        attachmentTable.setItems(attachmentList);
+        attachmentTable.setPrefHeight(250);
+
+        TableColumn<DriverAttachment, Long> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         idCol.setPrefWidth(50);
 
-        TableColumn<DriverDocument, DriverDocument.DocumentType> typeCol = new TableColumn<>("Тип");
-        typeCol.setCellValueFactory(new PropertyValueFactory<>("documentType"));
-        typeCol.setPrefWidth(180);
+        TableColumn<DriverAttachment, String> nameCol = new TableColumn<>("Имя файла");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("filename"));
+        nameCol.setPrefWidth(200);
 
-        TableColumn<DriverDocument, LocalDate> expiryCol = new TableColumn<>("Срок действия");
-        expiryCol.setCellValueFactory(new PropertyValueFactory<>("expiryDate"));
-        expiryCol.setPrefWidth(120);
-
-        TableColumn<DriverDocument, String> descCol = new TableColumn<>("Описание");
+        TableColumn<DriverAttachment, String> descCol = new TableColumn<>("Описание");
         descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-        descCol.setPrefWidth(200);
+        descCol.setPrefWidth(150);
 
-        TableColumn<DriverDocument, String> pdfCol = new TableColumn<>("PDF");
-        pdfCol.setCellValueFactory(cellData -> {
-            DriverDocument doc = cellData.getValue();
-            String status = doc.hasPdf() ? "Да (" + doc.getPdfFilename() + ")" : "Нет";
-            return new javafx.beans.property.SimpleStringProperty(status);
+        TableColumn<DriverAttachment, String> dateCol = new TableColumn<>("Дата добавления");
+        dateCol.setCellValueFactory(cellData -> {
+            if (cellData.getValue().getUploadedAt() != null) {
+                return new SimpleStringProperty(
+                    cellData.getValue().getUploadedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+            }
+            return new SimpleStringProperty("-");
         });
-        pdfCol.setPrefWidth(150);
+        dateCol.setPrefWidth(120);
 
-        docTable.getColumns().addAll(idCol, typeCol, expiryCol, descCol, pdfCol);
+        TableColumn<DriverAttachment, String> expCol = new TableColumn<>("Дата окончания");
+        expCol.setCellValueFactory(cellData -> {
+            LocalDate exp = cellData.getValue().getExpirationDate();
+            return new SimpleStringProperty(exp != null ? exp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "—");
+        });
+        expCol.setPrefWidth(120);
 
-        Button addDocButton = new Button("Добавить документ");
-        addDocButton.setOnAction(e -> addDriverDocument(selected, docList));
+        TableColumn<DriverAttachment, String> sizeCol = new TableColumn<>("Размер");
+        sizeCol.setCellValueFactory(cellData ->
+            new SimpleStringProperty(cellData.getValue().getFileSizeFormatted()));
+        sizeCol.setPrefWidth(80);
 
-        Button deleteDocButton = new Button("Удалить документ");
-        deleteDocButton.setOnAction(e -> deleteDriverDocument(docTable.getSelectionModel().getSelectedItem(), docList));
+        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, dateCol, expCol, sizeCol);
 
-        Button uploadPdfButton = new Button("Добавить PDF");
-        uploadPdfButton.setOnAction(e -> uploadDriverDocumentPdf(docTable.getSelectionModel().getSelectedItem(), docList));
+        attachmentTable.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(DriverAttachment item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item.getExpirationDate() == null) {
+                    setStyle("");
+                } else {
+                    long days = ChronoUnit.DAYS.between(LocalDate.now(), item.getExpirationDate());
+                    if (days <= 7) setStyle("-fx-background-color: #ffcdd2;");
+                    else if (days <= 30) setStyle("-fx-background-color: #fff9c4;");
+                    else setStyle("");
+                }
+            }
+        });
 
-        Button downloadPdfButton = new Button("Скачать PDF");
-        downloadPdfButton.setOnAction(e -> downloadDriverDocumentPdf(docTable.getSelectionModel().getSelectedItem()));
+        Button addBtn = new Button("Добавить файл");
+        addBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
+        addBtn.setOnAction(e -> { addAttachmentToDriver(driver, attachmentList); refreshData(); });
 
-        Button expiringButton = new Button("Истекающие");
-        expiringButton.setOnAction(e -> showExpiringDriverDocuments(selected));
+        Button downloadBtn = new Button("Скачать");
+        downloadBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+        downloadBtn.setOnAction(e -> {
+            DriverAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) downloadAttachment(sel);
+            else showAlert("Ошибка", "Выберите файл для скачивания", Alert.AlertType.WARNING);
+        });
 
-        HBox docButtonBox = new HBox(10, addDocButton, deleteDocButton, uploadPdfButton, downloadPdfButton, expiringButton);
+        Button editDescBtn = new Button("Изменить описание");
+        editDescBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white;");
+        editDescBtn.setOnAction(e -> {
+            DriverAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) editAttachmentDescription(sel, attachmentList, driver);
+            else showAlert("Ошибка", "Выберите файл", Alert.AlertType.WARNING);
+        });
 
-        VBox docContent = new VBox(10);
-        docContent.setPadding(new Insets(15));
-        docContent.getChildren().addAll(
-            new Label("Документы водителя: " + selected.getFullName()),
-            docButtonBox,
-            docTable
+        Button expDateBtn = new Button("Дата окончания");
+        expDateBtn.setStyle("-fx-background-color: #16a085; -fx-text-fill: white;");
+        expDateBtn.setOnAction(e -> {
+            DriverAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) editExpirationDate(sel, attachmentList, driver);
+            else showAlert("Ошибка", "Выберите файл", Alert.AlertType.WARNING);
+        });
+
+        Button deleteBtn = new Button("Удалить");
+        deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
+        deleteBtn.setOnAction(e -> {
+            DriverAttachment sel = attachmentTable.getSelectionModel().getSelectedItem();
+            if (sel != null) { deleteAttachment(driver, sel, attachmentList); refreshData(); }
+            else showAlert("Ошибка", "Выберите файл для удаления", Alert.AlertType.WARNING);
+        });
+
+        HBox buttonBox = new HBox(10, addBtn, downloadBtn, editDescBtn, expDateBtn, deleteBtn);
+        buttonBox.setPadding(new Insets(10, 0, 0, 0));
+
+        VBox content = new VBox(10,
+            new Label("Список документов:"),
+            attachmentTable,
+            buttonBox
         );
-        VBox.setVgrow(docTable, Priority.ALWAYS);
+        content.setPadding(new Insets(10));
 
-        Dialog<Void> dialog = new Dialog<>();
-        dialog.setTitle("Документы водителя");
-        dialog.setHeaderText(null);
-        dialog.getDialogPane().setContent(docContent);
-        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().setPrefWidth(750);
         dialog.getDialogPane().setPrefHeight(450);
         dialog.showAndWait();
     }
 
-    private void addDriverDocument(Driver driver, ObservableList<DriverDocument> docList) {
-        Dialog<DriverDocument> dialog = new Dialog<>();
-        dialog.setTitle("Добавить документ водителя");
-        dialog.setHeaderText("Введите данные документа");
+    private void addAttachmentToDriver(Driver driver, ObservableList<DriverAttachment> attachmentList) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Выберите файлы");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png"));
 
-        ButtonType addButtonType = new ButtonType("Добавить", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
+        Stage stage = (Stage) view.getScene().getWindow();
+        java.util.List<File> files = fileChooser.showOpenMultipleDialog(stage);
 
-        ComboBox<DriverDocument.DocumentType> typeCombo = new ComboBox<>();
-        typeCombo.getItems().addAll(DriverDocument.DocumentType.values());
-        typeCombo.setValue(DriverDocument.DocumentType.DRIVING_LICENSE);
-
-        DatePicker datePicker = new DatePicker();
-        datePicker.setValue(LocalDate.now().plusYears(1));
-
-        TextField descField = new TextField();
-        descField.setPromptText("Описание (необязательно)");
-
-        VBox content = new VBox(10,
-            new Label("Тип документа:"), typeCombo,
-            new Label("Срок действия:"), datePicker,
-            new Label("Описание:"), descField
-        );
-        content.setPadding(new Insets(10));
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().setPrefWidth(350);
-
-        dialog.setResultConverter(btn -> {
-            if (btn == addButtonType) {
-                DriverDocument doc = new DriverDocument();
-                doc.setDriver(driver);
-                doc.setDocumentType(typeCombo.getValue());
-                doc.setExpiryDate(datePicker.getValue());
-                doc.setDescription(descField.getText());
-                return doc;
+        if (files != null && !files.isEmpty()) {
+            int added = 0;
+            for (File file : files) {
+                try {
+                    byte[] fileData = Files.readAllBytes(file.toPath());
+                    DriverAttachment attachment = new DriverAttachment(file.getName(), "", fileData, driver);
+                    attachmentRepository.save(attachment);
+                    attachmentList.add(attachment);
+                    added++;
+                } catch (IOException e) {
+                    showAlert("Ошибка", "Не удалось прочитать файл: " + file.getName() + "\n" + e.getMessage(), Alert.AlertType.ERROR);
+                }
             }
+            if (added > 0) {
+                showAlert("Успех", "Добавлено файлов: " + added, Alert.AlertType.INFORMATION);
+            }
+        }
+    }
+
+    private void editAttachmentDescription(DriverAttachment attachment, ObservableList<DriverAttachment> attachmentList, Driver driver) {
+        TextInputDialog dlg = new TextInputDialog(attachment.getDescription() != null ? attachment.getDescription() : "");
+        dlg.setTitle("Описание документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+        dlg.setContentText("Описание:");
+        dlg.getEditor().setPrefWidth(350);
+
+        dlg.showAndWait().ifPresent(text -> {
+            try {
+                attachment.setDescription(text.trim());
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    new java.util.ArrayList<>(driverService.getDriverById(driver.getId()).map(Driver::getAttachments).orElse(java.util.Set.of())));
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
+    private void editExpirationDate(DriverAttachment attachment, ObservableList<DriverAttachment> attachmentList, Driver driver) {
+        Dialog<LocalDate> dlg = new Dialog<>();
+        dlg.setTitle("Дата окончания документа");
+        dlg.setHeaderText("Файл: " + attachment.getFilename());
+
+        ButtonType saveType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType clearType = new ButtonType("Убрать дату", ButtonBar.ButtonData.LEFT);
+        dlg.getDialogPane().getButtonTypes().addAll(saveType, clearType, ButtonType.CANCEL);
+
+        DatePicker datePicker = new DatePicker(attachment.getExpirationDate());
+        VBox dpContent = new VBox(10, new Label("Дата окончания:"), datePicker);
+        dpContent.setPadding(new Insets(10));
+        dlg.getDialogPane().setContent(dpContent);
+
+        dlg.setResultConverter(btn -> {
+            if (btn == saveType) return datePicker.getValue();
+            if (btn == clearType) return LocalDate.MIN;
             return null;
         });
 
-        dialog.showAndWait().ifPresent(doc -> {
+        dlg.showAndWait().ifPresent(date -> {
             try {
-                driverDocumentService.addDocument(doc);
-                docList.clear();
-                docList.addAll(driverDocumentService.getDocumentsByDriver(driver));
-                showAlert("Успех", "Документ добавлен", Alert.AlertType.INFORMATION);
-            } catch (Exception ex) {
-                showAlert("Ошибка", "Не удалось добавить документ: " + ex.getMessage(), Alert.AlertType.ERROR);
+                attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
+                attachmentRepository.save(attachment);
+                attachmentList.setAll(
+                    new java.util.ArrayList<>(driverService.getDriverById(driver.getId()).map(Driver::getAttachments).orElse(java.util.Set.of())));
+                refreshData();
+            } catch (Exception e) {
+                showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         });
     }
 
-    private void deleteDriverDocument(DriverDocument doc, ObservableList<DriverDocument> docList) {
-        if (doc == null) {
-            showAlert("Ошибка", "Выберите документ для удаления", Alert.AlertType.WARNING);
-            return;
-        }
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Подтверждение");
-        confirm.setHeaderText("Вы уверены, что хотите удалить этот документ?");
-        confirm.setContentText(doc.getDocumentType().getDisplayName());
-        confirm.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                try {
-                    driverDocumentService.deleteDocument(doc.getId());
-                    docList.remove(doc);
-                    showAlert("Успех", "Документ удалён", Alert.AlertType.INFORMATION);
-                } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить документ: " + e.getMessage(), Alert.AlertType.ERROR);
-                }
-            }
-        });
-    }
-
-    private void uploadDriverDocumentPdf(DriverDocument doc, ObservableList<DriverDocument> docList) {
-        if (doc == null) {
-            showAlert("Ошибка", "Выберите документ для добавления PDF", Alert.AlertType.WARNING);
-            return;
-        }
+    private void downloadAttachment(DriverAttachment attachment) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файл PDF");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"));
-        Stage stage = (Stage) view.getScene().getWindow();
-        File file = fileChooser.showOpenDialog(stage);
-        if (file != null) {
-            try {
-                byte[] data = Files.readAllBytes(file.toPath());
-                doc.setPdfData(data);
-                doc.setPdfFilename(file.getName());
-                driverDocumentService.updateDocument(doc);
-                docList.clear();
-                docList.addAll(driverDocumentService.getDocumentsByDriver(doc.getDriver()));
-                showAlert("Успех", "Файл PDF добавлен", Alert.AlertType.INFORMATION);
-            } catch (IOException e) {
-                showAlert("Ошибка", "Не удалось прочитать файл: " + e.getMessage(), Alert.AlertType.ERROR);
-            }
-        }
-    }
+        fileChooser.setTitle("Сохранить файл");
+        fileChooser.setInitialFileName(attachment.getFilename());
+        String ext = getExtension(attachment.getFilename());
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(ext.toUpperCase() + " файлы", "*." + ext),
+            new FileChooser.ExtensionFilter("Все файлы", "*.*")
+        );
+        fileChooser.setSelectedExtensionFilter(fileChooser.getExtensionFilters().get(0));
 
-    private void downloadDriverDocumentPdf(DriverDocument doc) {
-        if (doc == null) {
-            showAlert("Ошибка", "Выберите документ", Alert.AlertType.WARNING);
-            return;
-        }
-        if (!doc.hasPdf()) {
-            showAlert("Ошибка", "У выбранного документа нет прикреплённого PDF", Alert.AlertType.WARNING);
-            return;
-        }
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Сохранить файл PDF");
-        fileChooser.setInitialFileName(doc.getPdfFilename());
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"));
         Stage stage = (Stage) view.getScene().getWindow();
         File file = fileChooser.showSaveDialog(stage);
+
         if (file != null) {
+            file = ensureExtension(file, ext);
             try {
-                Files.write(file.toPath(), doc.getPdfData());
+                byte[] data = attachmentRepository.findFileDataById(attachment.getId());
+                Files.write(file.toPath(), data);
                 showAlert("Успех", "Файл сохранён: " + file.getAbsolutePath(), Alert.AlertType.INFORMATION);
-            } catch (IOException e) {
+            } catch (Exception e) {
                 showAlert("Ошибка", "Не удалось сохранить файл: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         }
     }
 
-    private void showExpiringDriverDocuments(Driver driver) {
-        var allExpiring = driverDocumentService.getExpiringDocuments();
-        var expiringForDriver = allExpiring.stream()
-            .filter(d -> d.getDriver().getId().equals(driver.getId()))
-            .toList();
+    private void deleteAttachment(Driver driver, DriverAttachment attachment, ObservableList<DriverAttachment> attachmentList) {
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Подтверждение");
+        confirmAlert.setHeaderText("Вы уверены, что хотите удалить это вложение?");
+        confirmAlert.setContentText("Файл: " + attachment.getFilename());
 
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Истекающие документы");
-        alert.setHeaderText("Документы водителя " + driver.getFullName() + " с истекающим сроком действия (30 дней):");
-        if (expiringForDriver.isEmpty()) {
-            alert.setContentText("Нет документов с истекающим сроком.");
-        } else {
-            StringBuilder sb = new StringBuilder();
-            for (DriverDocument d : expiringForDriver) {
-                sb.append("• ").append(d.getDocumentType().getDisplayName())
-                  .append(" — действителен до: ").append(d.getExpiryDate()).append("\n");
+        confirmAlert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    attachmentRepository.delete(attachment);
+                    attachmentList.remove(attachment);
+                    showAlert("Успех", "Вложение удалено", Alert.AlertType.INFORMATION);
+                } catch (Exception e) {
+                    showAlert("Ошибка", "Не удалось удалить вложение: " + e.getMessage(), Alert.AlertType.ERROR);
+                }
             }
-            alert.setContentText(sb.toString());
+        });
+    }
+
+    private static String getExpirationStyle(java.util.Collection<DriverAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) return "";
+        long minDays = Long.MAX_VALUE;
+        for (DriverAttachment a : attachments) {
+            if (a.getExpirationDate() != null) {
+                long days = ChronoUnit.DAYS.between(LocalDate.now(), a.getExpirationDate());
+                if (days < minDays) minDays = days;
+            }
         }
-        alert.showAndWait();
+        if (minDays == Long.MAX_VALUE) return "";
+        if (minDays <= 7) return "-fx-background-color: #ffcdd2;";
+        if (minDays <= 30) return "-fx-background-color: #fff9c4;";
+        return "";
     }
 
     private static boolean contains(String value, String search) {
         return value != null && value.toLowerCase().contains(search);
+    }
+
+    private void runAsync(Runnable task, String successMsg, String errorPrefix) {
+        Thread.ofVirtual().start(() -> {
+            try {
+                task.run();
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Успех", successMsg, Alert.AlertType.INFORMATION));
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Ошибка", errorPrefix + ": " + e.getMessage(), Alert.AlertType.ERROR));
+            }
+        });
+    }
+
+    private static String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "pdf";
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    private static java.io.File ensureExtension(java.io.File file, String ext) {
+        String name = file.getName();
+        if (name.contains(".") && name.toLowerCase().endsWith("." + ext.toLowerCase())) return file;
+        if (!name.contains(".")) return new java.io.File(file.getParent(), name + "." + ext);
+        return file;
     }
 
     private void showAlert(String title, String content, Alert.AlertType type) {

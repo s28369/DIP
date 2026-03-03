@@ -2,8 +2,8 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "trip")
@@ -22,7 +22,7 @@ public class Trip {
     private Trailer trailer;
     
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "driver_id", nullable = false)
+    @JoinColumn(name = "driver_id")
     private Driver driver;
     
     @ManyToOne(fetch = FetchType.EAGER)
@@ -54,11 +54,11 @@ public class Trip {
     @Column(name = "notes", length = 1000)
     private String notes;
     
-    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TripAttachment> attachments = new ArrayList<>();
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TripAttachment> attachments = new HashSet<>();
     
-    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TripNote> tripNotes = new ArrayList<>();
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TripNote> tripNotes = new HashSet<>();
     
     public enum TripStatus {
         PLANNED,
@@ -123,8 +123,8 @@ public class Trip {
         return origin + " → " + destination;
     }
     
-    public List<TripAttachment> getAttachments() { return attachments; }
-    public void setAttachments(List<TripAttachment> attachments) { this.attachments = attachments; }
+    public Set<TripAttachment> getAttachments() { return attachments; }
+    public void setAttachments(Set<TripAttachment> attachments) { this.attachments = attachments; }
     
     public void addAttachment(TripAttachment attachment) {
         attachments.add(attachment);
@@ -140,8 +140,8 @@ public class Trip {
         return attachments != null ? attachments.size() : 0;
     }
     
-    public List<TripNote> getTripNotes() { return tripNotes; }
-    public void setTripNotes(List<TripNote> tripNotes) { this.tripNotes = tripNotes; }
+    public Set<TripNote> getTripNotes() { return tripNotes; }
+    public void setTripNotes(Set<TripNote> tripNotes) { this.tripNotes = tripNotes; }
     
     public int getNoteCount() {
         return tripNotes != null ? tripNotes.size() : 0;

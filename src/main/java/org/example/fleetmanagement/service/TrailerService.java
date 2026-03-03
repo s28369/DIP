@@ -25,11 +25,11 @@ public class TrailerService {
     }
 
     public List<Trailer> getAllTrailers() {
-        return trailerRepository.findAll();
+        return trailerRepository.findAllWithDetails();
     }
 
     public Optional<Trailer> getTrailerById(Long id) {
-        return trailerRepository.findById(id);
+        return trailerRepository.findByIdWithDetails(id);
     }
 
     public Trailer addTrailer(Trailer trailer) {

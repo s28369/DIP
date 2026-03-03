@@ -2,8 +2,8 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "trailer")
@@ -32,11 +32,11 @@ public class Trailer {
     @Column(name = "current_location", length = 200)
     private String currentLocation;
 
-    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TrailerNote> notes = new ArrayList<>();
+    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TrailerNote> notes = new HashSet<>();
 
-    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TrailerAttachment> attachments = new ArrayList<>();
+    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TrailerAttachment> attachments = new HashSet<>();
 
     public Trailer() {
     }
@@ -89,11 +89,11 @@ public class Trailer {
         this.currentLocation = currentLocation;
     }
 
-    public List<TrailerNote> getNotes() {
+    public Set<TrailerNote> getNotes() {
         return notes;
     }
 
-    public void setNotes(List<TrailerNote> notes) {
+    public void setNotes(Set<TrailerNote> notes) {
         this.notes = notes;
     }
 
@@ -101,8 +101,8 @@ public class Trailer {
         return notes != null ? notes.size() : 0;
     }
 
-    public List<TrailerAttachment> getAttachments() { return attachments; }
-    public void setAttachments(List<TrailerAttachment> attachments) { this.attachments = attachments; }
+    public Set<TrailerAttachment> getAttachments() { return attachments; }
+    public void setAttachments(Set<TrailerAttachment> attachments) { this.attachments = attachments; }
 
     public void addAttachment(TrailerAttachment attachment) {
         attachments.add(attachment);

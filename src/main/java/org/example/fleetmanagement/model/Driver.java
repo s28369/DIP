@@ -2,8 +2,8 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "driver")
@@ -13,6 +13,10 @@ public class Driver {
     public static final String STATUS_ON_TRIP = "в рейсе";
     public static final String STATUS_MAINTENANCE = "на ремонте";
 
+    public static final String COMPANY_MTG = "МТГ";
+    public static final String COMPANY_APA = "АПА";
+    public static final String COMPANY_ABSOLUT = "Абсолют";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -20,11 +24,17 @@ public class Driver {
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
 
+    @Column(length = 100)
+    private String company;
+
     @Column(nullable = false, length = 50)
     private String status = STATUS_AVAILABLE;
 
-    @OneToMany(mappedBy = "driver", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<DriverPhone> phones = new ArrayList<>();
+    @OneToMany(mappedBy = "driver", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<DriverPhone> phones = new HashSet<>();
+
+    @OneToMany(mappedBy = "driver", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<DriverAttachment> attachments = new HashSet<>();
 
     public Driver() {
     }
@@ -45,6 +55,14 @@ public class Driver {
         this.fullName = fullName;
     }
 
+    public String getCompany() {
+        return company;
+    }
+
+    public void setCompany(String company) {
+        this.company = company;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -53,16 +71,29 @@ public class Driver {
         this.status = status;
     }
 
-    public List<DriverPhone> getPhones() {
+    public Set<DriverPhone> getPhones() {
         return phones;
     }
 
-    public void setPhones(List<DriverPhone> phones) {
+    public void setPhones(Set<DriverPhone> phones) {
         this.phones = phones;
     }
 
     public int getPhoneCount() {
         return phones != null ? phones.size() : 0;
+    }
+
+    public Set<DriverAttachment> getAttachments() { return attachments; }
+    public void setAttachments(Set<DriverAttachment> attachments) { this.attachments = attachments; }
+
+    public void addAttachment(DriverAttachment attachment) {
+        attachments.add(attachment);
+        attachment.setDriver(this);
+    }
+
+    public void removeAttachment(DriverAttachment attachment) {
+        attachments.remove(attachment);
+        attachment.setDriver(null);
     }
 
     @Override

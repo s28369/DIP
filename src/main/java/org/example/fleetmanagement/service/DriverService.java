@@ -25,11 +25,11 @@ public class DriverService {
     }
 
     public List<Driver> getAllDrivers() {
-        return driverRepository.findAll();
+        return driverRepository.findAllWithDetails();
     }
 
     public Optional<Driver> getDriverById(Long id) {
-        return driverRepository.findById(id);
+        return driverRepository.findByIdWithDetails(id);
     }
 
     public List<Driver> getAvailableDrivers() {
