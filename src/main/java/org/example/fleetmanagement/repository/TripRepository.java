@@ -3,6 +3,7 @@ package org.example.fleetmanagement.repository;
 import org.example.fleetmanagement.model.Trip;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,6 +15,9 @@ public interface TripRepository extends JpaRepository<Trip, Long> {
     List<Trip> findByStatus(Trip.TripStatus status);
 
     List<Trip> findByStatusIn(List<Trip.TripStatus> statuses);
+
+    @Query("SELECT DISTINCT t FROM Trip t LEFT JOIN FETCH t.attachments LEFT JOIN FETCH t.tripNotes WHERE t.status IN :statuses")
+    List<Trip> findByStatusInWithDetails(@Param("statuses") List<Trip.TripStatus> statuses);
 
     List<Trip> findByTruckId(Long truckId);
 

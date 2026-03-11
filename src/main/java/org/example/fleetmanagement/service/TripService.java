@@ -36,17 +36,27 @@ public class TripService {
     }
     
     public List<Trip> getAllTrips() {
-        return tripRepository.findAllWithDetails();
+        List<Trip> trips = tripRepository.findAllWithDetails();
+        trips.forEach(t -> {
+            t.getAttachments().size();
+            t.getTripNotes().size();
+        });
+        return trips;
     }
-    
+
     public Optional<Trip> getTripById(Long id) {
         return tripRepository.findByIdWithDetails(id);
     }
-    
+
     public List<Trip> getActiveTrips() {
-        return tripRepository.findByStatusIn(
+        List<Trip> trips = tripRepository.findByStatusInWithDetails(
             Arrays.asList(Trip.TripStatus.PLANNED, Trip.TripStatus.IN_PROGRESS)
         );
+        trips.forEach(t -> {
+            t.getAttachments().size();
+            t.getTripNotes().size();
+        });
+        return trips;
     }
     
     public List<Trip> getTripsByStatus(Trip.TripStatus status) {
