@@ -1,6 +1,7 @@
 package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -37,6 +38,12 @@ public class Trip {
     
     @Column(name = "cargo_description", length = 500)
     private String cargoDescription;
+
+    @Column(name = "loading_date")
+    private LocalDate loadingDate;
+
+    @Column(name = "unloading_date")
+    private LocalDate unloadingDate;
     
     @Column(name = "start_time")
     private LocalDateTime startTime;
@@ -103,6 +110,12 @@ public class Trip {
     
     public String getCargoDescription() { return cargoDescription; }
     public void setCargoDescription(String cargoDescription) { this.cargoDescription = cargoDescription; }
+
+    public LocalDate getLoadingDate() { return loadingDate; }
+    public void setLoadingDate(LocalDate loadingDate) { this.loadingDate = loadingDate; }
+
+    public LocalDate getUnloadingDate() { return unloadingDate; }
+    public void setUnloadingDate(LocalDate unloadingDate) { this.unloadingDate = unloadingDate; }
     
     public LocalDateTime getStartTime() { return startTime; }
     public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }

@@ -4,6 +4,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
@@ -37,6 +38,7 @@ public class TrailerManagementController {
     private final TrailerAttachmentRepository attachmentRepository;
     private final ObservableList<Trailer> trailerList = FXCollections.observableArrayList();
     private FilteredList<Trailer> filteredList;
+    private SortedList<Trailer> sortedList;
     private VBox view;
     private TableView<Trailer> tableView;
 
@@ -121,11 +123,17 @@ public class TrailerManagementController {
         searchField.textProperty().addListener((obs, o, n) -> applyFilter.run());
         searchParam.valueProperty().addListener((obs, o, n) -> applyFilter.run());
 
+        sortedList = new SortedList<>(filteredList, (a, b) -> {
+            int pa = getExpirationPriority(a.getAttachments());
+            int pb = getExpirationPriority(b.getAttachments());
+            return Integer.compare(pa, pb);
+        });
+
         HBox searchBox = new HBox(10, new Label("Поиск:"), searchField, searchParam);
         searchBox.setPadding(new Insets(0, 0, 5, 0));
 
         tableView = new TableView<>();
-        tableView.setItems(filteredList);
+        tableView.setItems(sortedList);
 
         TableColumn<Trailer, String> regCol = new TableColumn<>("Номер");
         regCol.setCellValueFactory(new PropertyValueFactory<>("registrationNumber"));
@@ -523,11 +531,6 @@ public class TrailerManagementController {
         descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
         descCol.setPrefWidth(150);
 
-        TableColumn<TrailerAttachment, String> sizeCol = new TableColumn<>("Размер");
-        sizeCol.setCellValueFactory(cellData ->
-            new SimpleStringProperty(cellData.getValue().getFileSizeFormatted()));
-        sizeCol.setPrefWidth(80);
-
         TableColumn<TrailerAttachment, String> dateCol = new TableColumn<>("Дата добавления");
         dateCol.setCellValueFactory(cellData -> {
             if (cellData.getValue().getUploadedAt() != null) {
@@ -545,7 +548,7 @@ public class TrailerManagementController {
         });
         expCol.setPrefWidth(120);
 
-        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, sizeCol, dateCol, expCol);
+        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, dateCol, expCol);
 
         attachmentTable.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -638,8 +641,9 @@ public class TrailerManagementController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите файлы");
         fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.doc", "*.docx", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Word", "*.doc", "*.docx"),
             new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png"));
 
         Stage stage = (Stage) view.getScene().getWindow();
@@ -761,8 +765,8 @@ public class TrailerManagementController {
         });
     }
 
-    private static String getExpirationStyle(java.util.Collection<TrailerAttachment> attachments) {
-        if (attachments == null || attachments.isEmpty()) return "";
+    private static int getExpirationPriority(java.util.Collection<TrailerAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) return 2;
         long minDays = Long.MAX_VALUE;
         for (TrailerAttachment a : attachments) {
             if (a.getExpirationDate() != null) {
@@ -770,10 +774,15 @@ public class TrailerManagementController {
                 if (days < minDays) minDays = days;
             }
         }
-        if (minDays == Long.MAX_VALUE) return "";
-        if (minDays <= 7) return "-fx-background-color: #ffcdd2;";
-        if (minDays <= 30) return "-fx-background-color: #fff9c4;";
-        return "";
+        if (minDays == Long.MAX_VALUE) return 2;
+        if (minDays <= 7) return 0;
+        if (minDays <= 30) return 1;
+        return 2;
+    }
+
+    private static String getExpirationStyle(java.util.Collection<TrailerAttachment> attachments) {
+        int p = getExpirationPriority(attachments);
+        return p == 0 ? "-fx-background-color: #ffcdd2;" : p == 1 ? "-fx-background-color: #fff9c4;" : "";
     }
 
     private static boolean contains(String value, String search) {

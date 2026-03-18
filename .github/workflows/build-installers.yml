@@ -45,13 +45,14 @@ jobs:
             --module-path target\fx-mods ^
             --add-modules javafx.controls,javafx.fxml,java.base,java.sql,java.naming,java.management,java.instrument,java.desktop,java.xml,java.logging,java.compiler,java.transaction.xa,java.security.jgss,java.security.sasl,java.prefs,java.scripting,jdk.unsupported,jdk.crypto.ec ^
             --java-options "--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.naming/javax.naming.spi=ALL-UNNAMED" ^
-            --app-version 1.0 ^
+            --app-version 1.0.${{ github.run_number }} ^
+            --win-upgrade-uuid 8a9b4c5d-6e7f-4a1b-9c2d-3e4f5a6b7c8d ^
             --win-shortcut ^
             --win-menu ^
             --win-dir-chooser ^
             --icon packaging\logo.ico ^
             --dest dist
-
+ 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
@@ -97,7 +98,7 @@ jobs:
             --module-path target/fx-mods \
             --add-modules javafx.controls,javafx.fxml,java.base,java.sql,java.naming,java.management,java.instrument,java.desktop,java.xml,java.logging,java.compiler,java.transaction.xa,java.security.jgss,java.security.sasl,java.prefs,java.scripting,jdk.unsupported,jdk.crypto.ec \
             --java-options "--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.naming/javax.naming.spi=ALL-UNNAMED" \
-            --app-version 1.0 \
+            --app-version 1.1 \
             --icon packaging/logo.icns \
             --dest dist
 

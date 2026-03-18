@@ -311,8 +311,9 @@ public class DocumentManagementController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите файл");
         fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.doc", "*.docx", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Word", "*.doc", "*.docx"),
             new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png")
         );
         

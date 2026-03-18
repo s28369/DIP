@@ -2,6 +2,7 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -26,6 +27,9 @@ public class Driver {
 
     @Column(length = 100)
     private String company;
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
 
     @Column(nullable = false, length = 50)
     private String status = STATUS_AVAILABLE;
@@ -61,6 +65,21 @@ public class Driver {
 
     public void setCompany(String company) {
         this.company = company;
+    }
+
+    public LocalDate getBirthDate() {
+        return birthDate;
+    }
+
+    public void setBirthDate(LocalDate birthDate) {
+        this.birthDate = birthDate;
+    }
+
+    /** Возвращает true, если сегодня день рождения водителя */
+    public boolean isBirthdayToday() {
+        if (birthDate == null) return false;
+        LocalDate today = LocalDate.now();
+        return birthDate.getMonth() == today.getMonth() && birthDate.getDayOfMonth() == today.getDayOfMonth();
     }
 
     public String getStatus() {

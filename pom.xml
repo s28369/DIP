@@ -23,8 +23,9 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <javafx.version>21.0.1</javafx.version>
-        <!-- Ustaw tę ścieżkę na katalog lib/ z pobranego JavaFX SDK -->
-        <javafx.sdk.path>${user.home}/javafx-sdk-21/lib</javafx.sdk.path>
+        <javafx.m2.basedir>${user.home}/.m2/repository/org/openjfx</javafx.m2.basedir>
+        <!-- Классификатор по умолчанию (переопределяется профилем) -->
+        <javafx.classifier>mac-aarch64</javafx.classifier>
     </properties>
 
     <dependencies>
@@ -75,15 +76,27 @@
     </dependencies>
 
     <profiles>
-        <!-- Na Mac Apple Silicon (arm64) używaj natywnych bibliotek aarch64 -->
+        <profile>
+            <id>javafx-win</id>
+            <activation><os><family>windows</family></os></activation>
+            <properties><javafx.classifier>win</javafx.classifier></properties>
+        </profile>
+        <profile>
+            <id>javafx-linux</id>
+            <activation><os><family>unix</family><arch>x86_64</arch></os></activation>
+            <properties><javafx.classifier>linux</javafx.classifier></properties>
+        </profile>
+        <profile>
+            <id>javafx-mac-x64</id>
+            <activation><os><family>mac</family><arch>x86_64</arch></os></activation>
+            <properties><javafx.classifier>mac</javafx.classifier></properties>
+        </profile>
         <profile>
             <id>mac-aarch64</id>
             <activation>
-                <os>
-                    <arch>aarch64</arch>
-                    <family>mac</family>
-                </os>
+                <os><arch>aarch64</arch><family>mac</family></os>
             </activation>
+            <properties><javafx.classifier>mac-aarch64</javafx.classifier></properties>
             <dependencies>
                 <dependency>
                     <groupId>org.openjfx</groupId>
@@ -148,7 +161,7 @@
                 </executions>
             </plugin>
 
-            <!-- JavaFX Maven Plugin -->
+            <!-- JavaFX Maven Plugin: использует JAR из Maven-репозитория -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -157,7 +170,7 @@
                     <mainClass>org.example.fleetmanagement.FleetManagementApplication</mainClass>
                     <options>
                         <option>--module-path</option>
-                        <option>${javafx.sdk.path}</option>
+                        <option>${javafx.m2.basedir}/javafx-base/${javafx.version}/javafx-base-${javafx.version}-${javafx.classifier}.jar:${javafx.m2.basedir}/javafx-graphics/${javafx.version}/javafx-graphics-${javafx.version}-${javafx.classifier}.jar:${javafx.m2.basedir}/javafx-controls/${javafx.version}/javafx-controls-${javafx.version}-${javafx.classifier}.jar:${javafx.m2.basedir}/javafx-fxml/${javafx.version}/javafx-fxml-${javafx.version}-${javafx.classifier}.jar</option>
                         <option>--add-modules</option>
                         <option>javafx.controls,javafx.fxml</option>
                     </options>

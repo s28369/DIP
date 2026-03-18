@@ -191,6 +191,20 @@ public class TripManagementController {
         TableColumn<Trip, String> cargoCol = new TableColumn<>("Товар");
         cargoCol.setCellValueFactory(new PropertyValueFactory<>("cargoDescription"));
         cargoCol.setPrefWidth(110);
+
+        TableColumn<Trip, String> loadingCol = new TableColumn<>("Дата загрузки");
+        loadingCol.setCellValueFactory(cellData -> {
+            LocalDate ld = cellData.getValue().getLoadingDate();
+            return new SimpleStringProperty(ld != null ? ld.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "—");
+        });
+        loadingCol.setPrefWidth(110);
+
+        TableColumn<Trip, String> unloadingCol = new TableColumn<>("Дата выгрузки");
+        unloadingCol.setCellValueFactory(cellData -> {
+            LocalDate ud = cellData.getValue().getUnloadingDate();
+            return new SimpleStringProperty(ud != null ? ud.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "—");
+        });
+        unloadingCol.setPrefWidth(110);
         
         TableColumn<Trip, String> customerCol = new TableColumn<>("Заказчик");
         customerCol.setCellValueFactory(cellData -> {
@@ -220,7 +234,7 @@ public class TripManagementController {
         notesCol.setPrefWidth(70);
         
         tableView.getColumns().addAll(truckCol, trailerCol, driverCol, originCol, destCol,
-                cargoCol, customerCol, statusCol, notesCol);
+                cargoCol, loadingCol, unloadingCol, customerCol, statusCol, notesCol);
 
         tableView.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -327,6 +341,12 @@ public class TripManagementController {
         TextField cargoField = new TextField();
         cargoField.setPromptText("Описание товара");
 
+        DatePicker loadingDatePicker = new DatePicker();
+        loadingDatePicker.setPromptText("Дата загрузки (необязательно)");
+
+        DatePicker unloadingDatePicker = new DatePicker();
+        unloadingDatePicker.setPromptText("Дата выгрузки (необязательно)");
+
         ComboBox<Customer> customerCombo = new ComboBox<>();
         customerCombo.getItems().addAll(customerService.getAllCustomers());
         customerCombo.setConverter(customerConverter());
@@ -340,6 +360,8 @@ public class TripManagementController {
             new Label("Откуда:"), originField,
             new Label("Куда:"), destinationField,
             new Label("Товар:"), cargoField,
+            new Label("Дата загрузки (необязательно):"), loadingDatePicker,
+            new Label("Дата выгрузки (необязательно):"), unloadingDatePicker,
             new Label("Заказчик:"), customerCombo
         );
         content.setPadding(new Insets(10));
@@ -379,6 +401,8 @@ public class TripManagementController {
                 trip.setOrigin(originField.getText().trim());
                 trip.setDestination(destinationField.getText().trim());
                 trip.setCargoDescription(cargoField.getText().trim());
+                trip.setLoadingDate(loadingDatePicker.getValue());
+                trip.setUnloadingDate(unloadingDatePicker.getValue());
                 trip.setStatus(Trip.TripStatus.PLANNED);
                 return trip;
             }
@@ -411,6 +435,12 @@ public class TripManagementController {
         TextField destinationField = new TextField(selected.getDestination());
         TextField cargoField = new TextField(selected.getCargoDescription() != null ? selected.getCargoDescription() : "");
 
+        DatePicker loadingDatePicker = new DatePicker(selected.getLoadingDate());
+        loadingDatePicker.setPromptText("Дата загрузки (необязательно)");
+
+        DatePicker unloadingDatePicker = new DatePicker(selected.getUnloadingDate());
+        unloadingDatePicker.setPromptText("Дата выгрузки (необязательно)");
+
         ComboBox<Customer> customerCombo = new ComboBox<>();
         customerCombo.getItems().addAll(customerService.getAllCustomers());
         customerCombo.setConverter(customerConverter());
@@ -423,6 +453,8 @@ public class TripManagementController {
             new Label("Откуда:"), originField,
             new Label("Куда:"), destinationField,
             new Label("Товар:"), cargoField,
+            new Label("Дата загрузки (необязательно):"), loadingDatePicker,
+            new Label("Дата выгрузки (необязательно):"), unloadingDatePicker,
             new Label("Заказчик:"), customerCombo
         );
         content.setPadding(new Insets(10));
@@ -434,6 +466,8 @@ public class TripManagementController {
                 selected.setOrigin(originField.getText().trim());
                 selected.setDestination(destinationField.getText().trim());
                 selected.setCargoDescription(cargoField.getText().trim());
+                selected.setLoadingDate(loadingDatePicker.getValue());
+                selected.setUnloadingDate(unloadingDatePicker.getValue());
                 selected.setCustomer(customerCombo.getValue());
                 return selected;
             }
@@ -927,8 +961,9 @@ public class TripManagementController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите файлы");
         fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.doc", "*.docx", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Word", "*.doc", "*.docx"),
             new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png")
         );
         

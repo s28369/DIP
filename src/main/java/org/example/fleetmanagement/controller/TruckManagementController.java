@@ -4,6 +4,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
@@ -36,6 +37,7 @@ public class TruckManagementController {
     private final TruckAttachmentRepository attachmentRepository;
     private final ObservableList<Truck> truckList = FXCollections.observableArrayList();
     private FilteredList<Truck> filteredList;
+    private SortedList<Truck> sortedList;
     private VBox view;
     private TableView<Truck> tableView;
     
@@ -110,11 +112,17 @@ public class TruckManagementController {
         searchField.textProperty().addListener((obs, o, n) -> applyFilter.run());
         searchParam.valueProperty().addListener((obs, o, n) -> applyFilter.run());
 
+        sortedList = new SortedList<>(filteredList, (a, b) -> {
+            int pa = getExpirationPriority(a.getAttachments());
+            int pb = getExpirationPriority(b.getAttachments());
+            return Integer.compare(pa, pb);
+        });
+
         HBox searchBox = new HBox(10, new Label("Поиск:"), searchField, searchParam);
         searchBox.setPadding(new Insets(0, 0, 5, 0));
 
         tableView = new TableView<>();
-        tableView.setItems(filteredList);
+        tableView.setItems(sortedList);
 
         TableColumn<Truck, String> registrationColumn = new TableColumn<>("Регистрационный номер");
         registrationColumn.setCellValueFactory(new PropertyValueFactory<>("registrationNumber"));
@@ -512,8 +520,9 @@ public class TruckManagementController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите файлы");
         fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.doc", "*.docx", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Word", "*.doc", "*.docx"),
             new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png")
         );
         
@@ -643,8 +652,8 @@ public class TruckManagementController {
     /**
      * Отображает диалоговое окно с сообщением
      */
-    private static String getExpirationStyle(java.util.Collection<TruckAttachment> attachments) {
-        if (attachments == null || attachments.isEmpty()) return "";
+    private static int getExpirationPriority(java.util.Collection<TruckAttachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) return 2;
         long minDays = Long.MAX_VALUE;
         for (TruckAttachment a : attachments) {
             if (a.getExpirationDate() != null) {
@@ -652,10 +661,15 @@ public class TruckManagementController {
                 if (days < minDays) minDays = days;
             }
         }
-        if (minDays == Long.MAX_VALUE) return "";
-        if (minDays <= 7) return "-fx-background-color: #ffcdd2;";
-        if (minDays <= 30) return "-fx-background-color: #fff9c4;";
-        return "";
+        if (minDays == Long.MAX_VALUE) return 2;
+        if (minDays <= 7) return 0;
+        if (minDays <= 30) return 1;
+        return 2;
+    }
+
+    private static String getExpirationStyle(java.util.Collection<TruckAttachment> attachments) {
+        int p = getExpirationPriority(attachments);
+        return p == 0 ? "-fx-background-color: #ffcdd2;" : p == 1 ? "-fx-background-color: #fff9c4;" : "";
     }
 
     private void runAsync(Runnable task, String successMsg, String errorPrefix) {

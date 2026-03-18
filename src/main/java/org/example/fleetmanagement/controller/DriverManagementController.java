@@ -4,6 +4,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
@@ -35,6 +36,7 @@ public class DriverManagementController {
     private final DriverAttachmentRepository attachmentRepository;
     private final ObservableList<Driver> driverList = FXCollections.observableArrayList();
     private FilteredList<Driver> filteredList;
+    private SortedList<Driver> sortedList;
     private VBox view;
     private TableView<Driver> tableView;
 
@@ -110,11 +112,19 @@ public class DriverManagementController {
         searchField.textProperty().addListener((obs, o, n) -> applyFilter.run());
         searchParam.valueProperty().addListener((obs, o, n) -> applyFilter.run());
 
+        sortedList = new SortedList<>(filteredList, (a, b) -> {
+            boolean ba = a.isBirthdayToday();
+            boolean bb = b.isBirthdayToday();
+            if (ba && !bb) return -1;
+            if (!ba && bb) return 1;
+            return 0;
+        });
+
         HBox searchBox = new HBox(10, new Label("Поиск:"), searchField, searchParam);
         searchBox.setPadding(new Insets(0, 0, 5, 0));
 
         tableView = new TableView<>();
-        tableView.setItems(filteredList);
+        tableView.setItems(sortedList);
 
         TableColumn<Driver, String> nameCol = new TableColumn<>("ФИО");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("fullName"));
@@ -154,11 +164,18 @@ public class DriverManagementController {
             }
         });
 
+        TableColumn<Driver, String> birthCol = new TableColumn<>("День рождения");
+        birthCol.setCellValueFactory(cellData -> {
+            LocalDate bd = cellData.getValue().getBirthDate();
+            return new SimpleStringProperty(bd != null ? bd.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) : "—");
+        });
+        birthCol.setPrefWidth(120);
+
         TableColumn<Driver, String> statusCol = new TableColumn<>("Статус");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setPrefWidth(150);
 
-        tableView.getColumns().addAll(nameCol, companyCol, phonesCol, statusCol);
+        tableView.getColumns().addAll(nameCol, companyCol, birthCol, phonesCol, statusCol);
 
         tableView.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -166,6 +183,8 @@ public class DriverManagementController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setStyle("");
+                } else if (item.isBirthdayToday()) {
+                    setStyle("-fx-background-color: #c8e6c9;");
                 } else {
                     setStyle(getExpirationStyle(item.getAttachments()));
                 }
@@ -215,9 +234,13 @@ public class DriverManagementController {
                 Driver.STATUS_AVAILABLE, Driver.STATUS_ON_TRIP, Driver.STATUS_MAINTENANCE);
         statusCombo.setValue(Driver.STATUS_AVAILABLE);
 
+        DatePicker birthDatePicker = new DatePicker();
+        birthDatePicker.setPromptText("День рождения (необязательно)");
+
         VBox content = new VBox(10,
             new Label("ФИО:"), fullNameField,
             new Label("Фирма:"), companyCombo,
+            new Label("День рождения:"), birthDatePicker,
             new Label("Статус:"), statusCombo
         );
         content.setPadding(new Insets(10));
@@ -238,6 +261,7 @@ public class DriverManagementController {
                 d.setFullName(fullNameField.getText().trim());
                 String company = companyCombo.getEditor().getText();
                 d.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
+                d.setBirthDate(birthDatePicker.getValue());
                 String status = statusCombo.getEditor().getText();
                 d.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Driver.STATUS_AVAILABLE);
                 return d;
@@ -279,9 +303,13 @@ public class DriverManagementController {
                 Driver.STATUS_AVAILABLE, Driver.STATUS_ON_TRIP, Driver.STATUS_MAINTENANCE);
         statusCombo.setValue(selected.getStatus());
 
+        DatePicker birthDatePicker = new DatePicker(selected.getBirthDate());
+        birthDatePicker.setPromptText("День рождения (необязательно)");
+
         VBox content = new VBox(10,
             new Label("ФИО:"), fullNameField,
             new Label("Фирма:"), companyCombo,
+            new Label("День рождения:"), birthDatePicker,
             new Label("Статус:"), statusCombo
         );
         content.setPadding(new Insets(10));
@@ -293,6 +321,7 @@ public class DriverManagementController {
                 selected.setFullName(fullNameField.getText().trim());
                 String company = companyCombo.getEditor().getText();
                 selected.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
+                selected.setBirthDate(birthDatePicker.getValue());
                 String status = statusCombo.getEditor().getText();
                 selected.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Driver.STATUS_AVAILABLE);
                 return selected;
@@ -656,8 +685,9 @@ public class DriverManagementController {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Выберите файлы");
         fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Все поддерживаемые", "*.pdf", "*.doc", "*.docx", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Word", "*.doc", "*.docx"),
             new FileChooser.ExtensionFilter("Изображения", "*.jpg", "*.jpeg", "*.png"));
 
         Stage stage = (Stage) view.getScene().getWindow();
