@@ -5,11 +5,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * JPA entity representing a PDF/file attachment assigned to a trailer.
+ * JPA entity representing a PDF/file attachment assigned to a driver.
  */
 @Entity
-@Table(name = "trailer_attachment")
-public class TrailerAttachment {
+@Table(name = "driver_attachment")
+public class DriverAttachment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,22 +36,22 @@ public class TrailerAttachment {
     private LocalDate expirationDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trailer_id", nullable = false)
-    private Trailer trailer;
+    @JoinColumn(name = "driver_id", nullable = false)
+    private Driver driver;
 
     // Default constructor; records the upload timestamp.
-    public TrailerAttachment() {
+    public DriverAttachment() {
         this.uploadedAt = LocalDateTime.now();
     }
 
     // Convenience constructor that stores the file bytes and computes the size.
-    public TrailerAttachment(String filename, String description, byte[] fileData, Trailer trailer) {
+    public DriverAttachment(String filename, String description, byte[] fileData, Driver driver) {
         this.filename = filename;
         this.description = description;
         this.fileData = fileData;
         this.fileSize = (long) fileData.length;
         this.uploadedAt = LocalDateTime.now();
-        this.trailer = trailer;
+        this.driver = driver;
     }
 
     public Long getId() { return id; }
@@ -78,8 +78,8 @@ public class TrailerAttachment {
     public LocalDate getExpirationDate() { return expirationDate; }
     public void setExpirationDate(LocalDate expirationDate) { this.expirationDate = expirationDate; }
 
-    public Trailer getTrailer() { return trailer; }
-    public void setTrailer(Trailer trailer) { this.trailer = trailer; }
+    public Driver getDriver() { return driver; }
+    public void setDriver(Driver driver) { this.driver = driver; }
 
     // Returns the file size as a human-readable string (B/KB/MB).
     public String getFileSizeFormatted() {

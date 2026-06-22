@@ -2,6 +2,9 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 
+/**
+ * JPA entity representing a single phone number belonging to a driver.
+ */
 @Entity
 @Table(name = "driver_phone")
 public class DriverPhone {
@@ -20,9 +23,11 @@ public class DriverPhone {
     @Column(length = 50)
     private String country;
 
+    // Default constructor required by JPA.
     public DriverPhone() {
     }
 
+    // Convenience constructor with the phone fields and owning driver.
     public DriverPhone(String phoneNumber, String country, Driver driver) {
         this.phoneNumber = phoneNumber;
         this.country = country;

@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Контроллер, обрабатывающий вход пользователя в систему
+ * Controller handling the user login screen.
  */
 @Component
 public class LoginController {
@@ -23,28 +23,25 @@ public class LoginController {
     
     private final AuthenticationService authenticationService;
     
+    // Constructor injection of the authentication service.
     @Autowired
     public LoginController(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
     }
     
-    /**
-     * Инициализация контроллера
-     */
+    // JavaFX lifecycle hook called after the FXML is loaded.
     @FXML
     public void initialize() {
     }
     
-    /**
-     * Обработка нажатия кнопки входа
-     */
+    // Validates input, authenticates the user and opens the main screen on success.
     @FXML
     private void handleLogin() {
         String username = usernameField.getText();
         String password = passwordField.getText();
         
         if (username.isEmpty() || password.isEmpty()) {
-            showAlert("Ошибка", "Пожалуйста, заполните все поля", Alert.AlertType.ERROR);
+            showAlert("Błąd", "Proszę wypełnić wszystkie pola", Alert.AlertType.ERROR);
             return;
         }
         
@@ -52,19 +49,17 @@ public class LoginController {
             try {
                 FleetManagementApplication.showMainScreen();
             } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось загрузить главный экран: " + e.getMessage(), 
+                showAlert("Błąd", "Nie udało się załadować ekranu głównego: " + e.getMessage(), 
                     Alert.AlertType.ERROR);
                 e.printStackTrace();
             }
         } else {
-            showAlert("Ошибка входа", "Неверное имя пользователя или пароль", 
+            showAlert("Błąd logowania", "Nieprawidłowa nazwa użytkownika lub hasło", 
                 Alert.AlertType.ERROR);
         }
     }
     
-    /**
-     * Отображает диалоговое окно с сообщением
-     */
+    // Shows a simple modal alert dialog with the given title and message.
     private void showAlert(String title, String content, Alert.AlertType type) {
         Alert alert = new Alert(type);
         alert.setTitle(title);

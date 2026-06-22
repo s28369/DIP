@@ -4,6 +4,9 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
+/**
+ * JPA configuration: enables Spring Data repositories and entity scanning.
+ */
 @Configuration
 @EnableJpaRepositories(basePackages = "org.example.fleetmanagement.repository")
 @EntityScan(basePackages = "org.example.fleetmanagement.model")

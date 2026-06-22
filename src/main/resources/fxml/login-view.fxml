@@ -21,14 +21,14 @@
     </padding>
     
     <!-- Nagłówek -->
-    <Label text="Система управления автопарком" 
+    <Label text="System zarządzania flotą" 
            style="-fx-text-fill: #2c3e50;">
         <font>
             <Font name="System Bold" size="24"/>
         </font>
     </Label>
     
-    <Label text="Авторизация" 
+    <Label text="Logowanie" 
            style="-fx-text-fill: #34495e;">
         <font>
             <Font size="16"/>
@@ -37,34 +37,34 @@
     
     <!-- Pole nazwy użytkownika -->
     <VBox spacing="5">
-        <Label text="Имя пользователя:" 
+        <Label text="Nazwa użytkownika:" 
                style="-fx-text-fill: #2c3e50;">
             <font>
                 <Font size="12"/>
             </font>
         </Label>
         <TextField fx:id="usernameField" 
-                   promptText="Введите имя пользователя"
+                   promptText="Wprowadź nazwę użytkownika"
                    prefWidth="300"
                    style="-fx-background-radius: 5; -fx-border-radius: 5;"/>
     </VBox>
     
     <!-- Pole hasła -->
     <VBox spacing="5">
-        <Label text="Пароль:" 
+        <Label text="Hasło:" 
                style="-fx-text-fill: #2c3e50;">
             <font>
                 <Font size="12"/>
             </font>
         </Label>
         <PasswordField fx:id="passwordField" 
-                       promptText="Введите пароль"
+                       promptText="Wprowadź hasło"
                        prefWidth="300"
                        style="-fx-background-radius: 5; -fx-border-radius: 5;"/>
     </VBox>
     
     <!-- Przycisk logowania -->
-    <Button text="Войти" 
+    <Button text="Zaloguj się" 
             onAction="#handleLogin"
             prefWidth="300"
             style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 14px; -fx-background-radius: 5;">

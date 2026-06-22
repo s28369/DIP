@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Сервис для операций с грузовиками
+ * Service for truck (tractor unit) operations.
  */
 @Service
 @Transactional
@@ -18,68 +18,45 @@ public class TruckService {
     
     private final TruckRepository truckRepository;
     
+    // Constructor injection of the truck repository.
     @Autowired
     public TruckService(TruckRepository truckRepository) {
         this.truckRepository = truckRepository;
     }
     
-    /**
-     * Возвращает все грузовики
-     * @return список всех грузовиков
-     */
+    // Returns all trucks with their related details loaded.
     public List<Truck> getAllTrucks() {
-        return truckRepository.findAll();
+        return truckRepository.findAllWithDetails();
     }
     
-    /**
-     * Ищет грузовик по ID
-     * @param id идентификатор грузовика
-     * @return Optional с грузовиком, если существует
-     */
+    // Finds a single truck by id with its details loaded.
     public Optional<Truck> getTruckById(Long id) {
-        return truckRepository.findById(id);
+        return truckRepository.findByIdWithDetails(id);
     }
     
-    /**
-     * Добавляет новый грузовик в систему
-     * @param truck грузовик для добавления
-     * @return сохранённый грузовик
-     * @throws IllegalArgumentException если грузовик с указанным регистрационным номером уже существует
-     */
+    // Adds a new truck, rejecting duplicate registration numbers.
     public Truck addTruck(Truck truck) {
         if (truckRepository.existsByRegistrationNumber(truck.getRegistrationNumber())) {
-            throw new IllegalArgumentException("Грузовик с регистрационным номером " 
-                + truck.getRegistrationNumber() + " уже существует в системе");
+            throw new IllegalArgumentException("Ciągnik o numerze rejestracyjnym " 
+                + truck.getRegistrationNumber() + " już istnieje w systemie");
         }
         return truckRepository.save(truck);
     }
     
-    /**
-     * Обновляет данные грузовика
-     * @param truck грузовик с обновлёнными данными
-     * @return обновлённый грузовик
-     */
+    // Persists changes to an existing truck.
     public Truck updateTruck(Truck truck) {
         return truckRepository.save(truck);
     }
     
-    /**
-     * Удаляет грузовик из системы
-     * @param id идентификатор грузовика для удаления
-     * @throws IllegalArgumentException если грузовик не существует
-     */
+    // Deletes a truck by id, failing if it does not exist.
     public void deleteTruck(Long id) {
         if (!truckRepository.existsById(id)) {
-            throw new IllegalArgumentException("Грузовик с ID " + id + " не существует");
+            throw new IllegalArgumentException("Ciągnik o ID " + id + " nie istnieje");
         }
         truckRepository.deleteById(id);
     }
     
-    /**
-     * Ищет грузовики по статусу
-     * @param status статус грузовика
-     * @return список грузовиков с указанным статусом
-     */
+    // Returns trucks filtered by status.
     public List<Truck> getTrucksByStatus(String status) {
         return truckRepository.findByStatus(status);
     }

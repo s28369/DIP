@@ -3,6 +3,9 @@ package org.example.fleetmanagement.model;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+/**
+ * JPA entity representing a timestamped note attached to a trailer.
+ */
 @Entity
 @Table(name = "trailer_note")
 public class TrailerNote {
@@ -21,10 +24,12 @@ public class TrailerNote {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    // Default constructor; records the creation timestamp.
     public TrailerNote() {
         this.createdAt = LocalDateTime.now();
     }
 
+    // Convenience constructor with the note content and owning trailer.
     public TrailerNote(String content, Trailer trailer) {
         this.content = content;
         this.trailer = trailer;

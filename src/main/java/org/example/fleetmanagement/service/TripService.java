@@ -12,6 +12,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Service handling trip (route) business logic and the related status changes
+ * of the assigned driver, truck and trailer.
+ */
 @Service
 @Transactional
 public class TripService {
@@ -22,6 +26,7 @@ public class TripService {
     private final TruckService truckService;
     private final TrailerService trailerService;
     
+    // Constructor injection of the trip repositories and the related domain services.
     @Autowired
     public TripService(TripRepository tripRepository,
                        TripNoteRepository tripNoteRepository,
@@ -35,28 +40,35 @@ public class TripService {
         this.trailerService = trailerService;
     }
     
+    // Returns all trips with their related entities eagerly loaded.
     public List<Trip> getAllTrips() {
-        return tripRepository.findAll();
+        return tripRepository.findAllWithDetails();
     }
     
+    // Finds a single trip by id with its related entities loaded.
     public Optional<Trip> getTripById(Long id) {
-        return tripRepository.findById(id);
+        return tripRepository.findByIdWithDetails(id);
     }
     
+    // Returns only the active trips (planned or in progress).
     public List<Trip> getActiveTrips() {
         return tripRepository.findByStatusIn(
             Arrays.asList(Trip.TripStatus.PLANNED, Trip.TripStatus.IN_PROGRESS)
         );
     }
     
+    // Returns trips filtered by a given status.
     public List<Trip> getTripsByStatus(Trip.TripStatus status) {
         return tripRepository.findByStatus(status);
     }
     
+    // Creates a new trip and marks the assigned driver, truck and trailer as "on trip".
     public Trip createTrip(Trip trip) {
         Driver driver = trip.getDriver();
-        driver.setStatus(Driver.STATUS_ON_TRIP);
-        driverService.updateDriver(driver);
+        if (driver != null) {
+            driver.setStatus(Driver.STATUS_ON_TRIP);
+            driverService.updateDriver(driver);
+        }
 
         Truck truck = trip.getTruck();
         truck.setStatus(Truck.STATUS_ON_TRIP);
@@ -74,13 +86,15 @@ public class TripService {
         return tripRepository.save(trip);
     }
     
+    // Persists changes to an existing trip.
     public Trip updateTrip(Trip trip) {
         return tripRepository.save(trip);
     }
     
+    // Marks a trip as in progress and records its start time.
     public Trip startTrip(Long tripId) {
         Trip trip = tripRepository.findById(tripId)
-            .orElseThrow(() -> new IllegalArgumentException("Рейс не существует"));
+            .orElseThrow(() -> new IllegalArgumentException("Trasa nie istnieje"));
         
         trip.setStatus(Trip.TripStatus.IN_PROGRESS);
         trip.setStartTime(LocalDateTime.now());
@@ -88,16 +102,19 @@ public class TripService {
         return tripRepository.save(trip);
     }
     
+    // Completes a trip, records arrival time and frees the driver, truck and trailer.
     public Trip completeTrip(Long tripId) {
         Trip trip = tripRepository.findById(tripId)
-            .orElseThrow(() -> new IllegalArgumentException("Рейс не существует"));
+            .orElseThrow(() -> new IllegalArgumentException("Trasa nie istnieje"));
         
         trip.setStatus(Trip.TripStatus.COMPLETED);
         trip.setActualArrival(LocalDateTime.now());
 
         Driver driver = trip.getDriver();
-        driver.setStatus(Driver.STATUS_AVAILABLE);
-        driverService.updateDriver(driver);
+        if (driver != null) {
+            driver.setStatus(Driver.STATUS_AVAILABLE);
+            driverService.updateDriver(driver);
+        }
 
         Truck truck = trip.getTruck();
         truck.setStatus(Truck.STATUS_AVAILABLE);
@@ -115,15 +132,18 @@ public class TripService {
         return tripRepository.save(trip);
     }
     
+    // Cancels a trip and releases the assigned driver, truck and trailer.
     public Trip cancelTrip(Long tripId) {
         Trip trip = tripRepository.findById(tripId)
-            .orElseThrow(() -> new IllegalArgumentException("Рейс не существует"));
+            .orElseThrow(() -> new IllegalArgumentException("Trasa nie istnieje"));
         
         trip.setStatus(Trip.TripStatus.CANCELLED);
 
         Driver driver = trip.getDriver();
-        driver.setStatus(Driver.STATUS_AVAILABLE);
-        driverService.updateDriver(driver);
+        if (driver != null) {
+            driver.setStatus(Driver.STATUS_AVAILABLE);
+            driverService.updateDriver(driver);
+        }
 
         Truck truck = trip.getTruck();
         truck.setStatus(Truck.STATUS_AVAILABLE);
@@ -138,15 +158,18 @@ public class TripService {
         return tripRepository.save(trip);
     }
     
+    // Deletes a trip; if it was still active, the freed resources are released first.
     public void deleteTrip(Long id) {
         Trip trip = tripRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Рейс не существует"));
+            .orElseThrow(() -> new IllegalArgumentException("Trasa nie istnieje"));
 
         if (trip.getStatus() == Trip.TripStatus.PLANNED ||
             trip.getStatus() == Trip.TripStatus.IN_PROGRESS) {
             Driver driver = trip.getDriver();
-            driver.setStatus(Driver.STATUS_AVAILABLE);
-            driverService.updateDriver(driver);
+            if (driver != null) {
+                driver.setStatus(Driver.STATUS_AVAILABLE);
+                driverService.updateDriver(driver);
+            }
 
             Truck truck = trip.getTruck();
             truck.setStatus(Truck.STATUS_AVAILABLE);
@@ -164,18 +187,22 @@ public class TripService {
 
     // --- Notes ---
 
+    // Returns the notes of a trip, newest first.
     public List<TripNote> getNotesByTrip(Long tripId) {
         return tripNoteRepository.findByTripIdOrderByCreatedAtDesc(tripId);
     }
 
+    // Saves a new note attached to a trip.
     public TripNote addNote(TripNote note) {
         return tripNoteRepository.save(note);
     }
 
+    // Persists changes to an existing trip note.
     public TripNote updateNote(TripNote note) {
         return tripNoteRepository.save(note);
     }
 
+    // Deletes a trip note by id.
     public void deleteNote(Long noteId) {
         tripNoteRepository.deleteById(noteId);
     }

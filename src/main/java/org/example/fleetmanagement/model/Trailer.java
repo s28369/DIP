@@ -2,16 +2,19 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
+/**
+ * JPA entity representing a trailer (semi-trailer), with its notes and document attachments.
+ */
 @Entity
 @Table(name = "trailer")
 public class Trailer {
 
-    public static final String STATUS_AVAILABLE = "Доступен";
-    public static final String STATUS_ON_TRIP = "в рейсе";
-    public static final String STATUS_MAINTENANCE = "на ремонте";
+    public static final String STATUS_AVAILABLE = "Dostępny";
+    public static final String STATUS_ON_TRIP = "W trasie";
+    public static final String STATUS_MAINTENANCE = "W naprawie";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,12 +35,13 @@ public class Trailer {
     @Column(name = "current_location", length = 200)
     private String currentLocation;
 
-    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TrailerNote> notes = new ArrayList<>();
+    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TrailerNote> notes = new HashSet<>();
 
-    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TrailerAttachment> attachments = new ArrayList<>();
+    @OneToMany(mappedBy = "trailer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TrailerAttachment> attachments = new HashSet<>();
 
+    // Default constructor required by JPA.
     public Trailer() {
     }
 
@@ -89,31 +93,35 @@ public class Trailer {
         this.currentLocation = currentLocation;
     }
 
-    public List<TrailerNote> getNotes() {
+    public Set<TrailerNote> getNotes() {
         return notes;
     }
 
-    public void setNotes(List<TrailerNote> notes) {
+    public void setNotes(Set<TrailerNote> notes) {
         this.notes = notes;
     }
 
+    // Returns the number of notes on this trailer.
     public int getNoteCount() {
         return notes != null ? notes.size() : 0;
     }
 
-    public List<TrailerAttachment> getAttachments() { return attachments; }
-    public void setAttachments(List<TrailerAttachment> attachments) { this.attachments = attachments; }
+    public Set<TrailerAttachment> getAttachments() { return attachments; }
+    public void setAttachments(Set<TrailerAttachment> attachments) { this.attachments = attachments; }
 
+    // Adds an attachment and sets its back-reference to this trailer.
     public void addAttachment(TrailerAttachment attachment) {
         attachments.add(attachment);
         attachment.setTrailer(this);
     }
 
+    // Removes an attachment and clears its back-reference.
     public void removeAttachment(TrailerAttachment attachment) {
         attachments.remove(attachment);
         attachment.setTrailer(null);
     }
 
+    // Returns the number of attachments on this trailer.
     public int getAttachmentCount() {
         return attachments != null ? attachments.size() : 0;
     }

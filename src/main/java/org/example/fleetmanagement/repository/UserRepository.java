@@ -7,22 +7,14 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 /**
- * Репозиторий для операций с сущностью User
+ * Repository for User entity operations.
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     
-    /**
-     * Ищет пользователя по имени пользователя
-     * @param username имя пользователя
-     * @return Optional с пользователем, если существует
-     */
+    // Finds a user by username.
     Optional<User> findByUsername(String username);
     
-    /**
-     * Проверяет, существует ли пользователь с указанным именем
-     * @param username имя пользователя
-     * @return true, если существует, false в противном случае
-     */
+    // Returns true if a user with the given username exists.
     boolean existsByUsername(String username);
 }

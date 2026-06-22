@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Сервис для операций с документами
+ * Service for truck document operations (including expiry checks).
  */
 @Service
 @Transactional
@@ -20,77 +20,50 @@ public class DocumentService {
     
     private final DocumentRepository documentRepository;
     
+    // Constructor injection of the document repository.
     @Autowired
     public DocumentService(DocumentRepository documentRepository) {
         this.documentRepository = documentRepository;
     }
     
-    /**
-     * Возвращает все документы
-     * @return список всех документов
-     */
+    // Returns all documents.
     public List<Document> getAllDocuments() {
         return documentRepository.findAll();
     }
     
-    /**
-     * Ищет документ по ID
-     * @param id идентификатор документа
-     * @return Optional с документом, если существует
-     */
+    // Finds a single document by id.
     public Optional<Document> getDocumentById(Long id) {
         return documentRepository.findById(id);
     }
     
-    /**
-     * Возвращает все документы, привязанные к грузовику
-     * @param truck грузовик
-     * @return список документов
-     */
+    // Returns all documents assigned to a given truck.
     public List<Document> getDocumentsByTruck(Truck truck) {
         return documentRepository.findByTruck(truck);
     }
     
-    /**
-     * Добавляет новый документ в систему
-     * @param document документ для добавления
-     * @return сохранённый документ
-     */
+    // Saves a new document.
     public Document addDocument(Document document) {
         return documentRepository.save(document);
     }
     
-    /**
-     * Обновляет данные документа
-     * @param document документ с обновлёнными данными
-     * @return обновлённый документ
-     */
+    // Persists changes to an existing document.
     public Document updateDocument(Document document) {
         return documentRepository.save(document);
     }
     
-    /**
-     * Удаляет документ из системы
-     * @param id идентификатор документа для удаления
-     */
+    // Deletes a document by id.
     public void deleteDocument(Long id) {
         documentRepository.deleteById(id);
     }
     
-    /**
-     * Возвращает документы, истекающие в течение ближайших 30 дней
-     * @return список истекающих документов
-     */
+    // Returns documents expiring within the next 30 days.
     public List<Document> getExpiringDocuments() {
         LocalDate now = LocalDate.now();
         LocalDate thirtyDaysLater = now.plusDays(30);
         return documentRepository.findExpiringDocuments(now, thirtyDaysLater);
     }
     
-    /**
-     * Возвращает просроченные документы
-     * @return список просроченных документов
-     */
+    // Returns documents that have already expired.
     public List<Document> getExpiredDocuments() {
         return documentRepository.findByExpiryDateBefore(LocalDate.now());
     }

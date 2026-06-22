@@ -6,7 +6,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+/**
+ * Repository for trip notes.
+ */
 @Repository
 public interface TripNoteRepository extends JpaRepository<TripNote, Long> {
+    // Returns the notes of a trip, newest first.
     List<TripNote> findByTripIdOrderByCreatedAtDesc(Long tripId);
 }

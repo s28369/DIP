@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Главный контроллер приложения, управляющий представлениями
+ * Main application controller that manages navigation between the feature views.
  */
 @Component
 public class MainController {
@@ -47,7 +47,12 @@ public class MainController {
 
     private static final long CACHE_TTL_MS = 30_000;
     private final Map<String, Long> lastRefreshTime = new ConcurrentHashMap<>();
+    private static MainController instance;
+
+    // Returns the singleton instance of this controller (used to invalidate the view cache).
+    public static MainController getInstance() { return instance; }
     
+    // Constructor injection of the authentication service and all feature controllers.
     @Autowired
     public MainController(
         AuthenticationService authenticationService,
@@ -67,6 +72,7 @@ public class MainController {
         this.tripManagementController = tripManagementController;
     }
 
+    // Swaps the center content to the given view and refreshes its data off the FX thread, using a short-lived cache.
     private void showViewAsync(String key, javafx.scene.Parent view, Runnable refreshAction) {
         contentArea.getChildren().clear();
         contentArea.getChildren().add(view);
@@ -91,29 +97,29 @@ public class MainController {
         });
     }
     
-    /**
-     * Инициализация контроллера
-     */
+    // JavaFX lifecycle hook: shows user info, applies role-based access and opens the trucks view.
     @FXML
     public void initialize() {
+        instance = this;
         updateUserInfo();
         configureAdminAccess();
         showTruckManagement();
     }
+
+    // Clears the view refresh cache so the next navigation reloads fresh data.
+    public void invalidateCache() {
+        lastRefreshTime.clear();
+    }
     
-    /**
-     * Обновляет информацию о залогированном пользователе
-     */
+    // Updates the header labels with the logged-in user's name and role.
     private void updateUserInfo() {
         if (authenticationService.isLoggedIn()) {
-            welcomeLabel.setText("Добро пожаловать, " + authenticationService.getCurrentUser().getFullName());
-            roleLabel.setText("Роль: " + getRoleDisplayName());
+            welcomeLabel.setText("Witamy, " + authenticationService.getCurrentUser().getFullName());
+            roleLabel.setText("Rola: " + getRoleDisplayName());
         }
     }
     
-    /**
-     * Настраивает доступ к панели администратора
-     */
+    // Shows or hides the admin panel button depending on the current user's role.
     private void configureAdminAccess() {
         if (adminButton != null) {
             boolean isAdmin = authenticationService.isLoggedIn() && 
@@ -123,46 +129,50 @@ public class MainController {
         }
     }
     
-    /**
-     * Возвращает название роли пользователя для отображения
-     */
+    // Maps the current user's role enum to its Polish display label.
     private String getRoleDisplayName() {
         return switch (authenticationService.getCurrentUser().getRole()) {
-            case ADMINISTRATOR -> "Администратор";
-            case LOGISTICIAN -> "Логист";
+            case ADMINISTRATOR -> "Administrator";
+            case LOGISTICIAN -> "Logistyk";
         };
     }
     
+    // Shows the trucks management view.
     @FXML
     private void showTruckManagement() {
         showViewAsync("trucks", truckManagementController.getView(),
             truckManagementController::refreshData);
     }
     
+    // Shows the trailers management view.
     @FXML
     private void showTrailerManagement() {
         showViewAsync("trailers", trailerManagementController.getView(),
             trailerManagementController::refreshData);
     }
 
+    // Shows the documents management view.
     @FXML
     private void showDocumentManagement() {
         showViewAsync("documents", documentManagementController.getView(),
             documentManagementController::refreshData);
     }
     
+    // Shows the drivers management view.
     @FXML
     private void showDriverManagement() {
         showViewAsync("drivers", driverManagementController.getView(),
             driverManagementController::refreshData);
     }
     
+    // Shows the trips (active routes) management view.
     @FXML
     private void showTripManagement() {
         showViewAsync("trips", tripManagementController.getView(),
             tripManagementController::refreshData);
     }
     
+    // Shows the admin user-management view (administrators only).
     @FXML
     private void showUserManagement() {
         if (!authenticationService.isLoggedIn() || 
@@ -173,9 +183,7 @@ public class MainController {
             userManagementController::refreshData);
     }
     
-    /**
-     * Обработка выхода из системы
-     */
+    // Logs the current user out and returns to the login screen.
     @FXML
     private void handleLogout() {
         authenticationService.logout();

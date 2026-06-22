@@ -8,29 +8,37 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Service for customer operations.
+ */
 @Service
 @Transactional
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
 
+    // Constructor injection of the customer repository.
     @Autowired
     public CustomerService(CustomerRepository customerRepository) {
         this.customerRepository = customerRepository;
     }
 
+    // Returns all customers.
     public List<Customer> getAllCustomers() {
         return customerRepository.findAll();
     }
 
+    // Saves a new customer.
     public Customer addCustomer(Customer customer) {
         return customerRepository.save(customer);
     }
 
+    // Persists changes to an existing customer.
     public Customer updateCustomer(Customer customer) {
         return customerRepository.save(customer);
     }
 
+    // Deletes a customer by id.
     public void deleteCustomer(Long id) {
         customerRepository.deleteById(id);
     }

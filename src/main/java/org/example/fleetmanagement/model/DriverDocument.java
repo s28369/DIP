@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 
 /**
- * Класс, представляющий документ, привязанный к водителю
+ * JPA entity representing a document assigned to a driver (with optional attached PDF).
  */
 @Entity
 @Table(name = "driver_document")
@@ -36,15 +36,13 @@ public class DriverDocument {
     @Column(name = "pdf_filename", length = 255)
     private String pdfFilename;
 
-    /**
-     * Перечисление, определяющее тип документа водителя
-     */
+    // Driver document type with its Polish display label.
     public enum DocumentType {
-        DRIVING_LICENSE("Водительское удостоверение"),
-        MEDICAL_CERTIFICATE("Медицинская справка"),
-        TRAINING_CERTIFICATE("Свидетельство об обучении"),
-        CPC_CARD("Карта квалификации водителя (CPC)"),
-        OTHER("Прочее");
+        DRIVING_LICENSE("Prawo jazdy"),
+        MEDICAL_CERTIFICATE("Zaświadczenie lekarskie"),
+        TRAINING_CERTIFICATE("Świadectwo ukończenia szkolenia"),
+        CPC_CARD("Karta kwalifikacji kierowcy (CPC)"),
+        OTHER("Inne");
 
         private final String displayName;
 
@@ -52,14 +50,17 @@ public class DriverDocument {
             this.displayName = displayName;
         }
 
+        // Returns the human-readable label of this document type.
         public String getDisplayName() {
             return displayName;
         }
     }
 
+    // Default constructor required by JPA.
     public DriverDocument() {
     }
 
+    // Convenience constructor with the core fields.
     public DriverDocument(Driver driver, DocumentType documentType, LocalDate expiryDate, String description) {
         this.driver = driver;
         this.documentType = documentType;
@@ -123,10 +124,12 @@ public class DriverDocument {
         this.pdfFilename = pdfFilename;
     }
 
+    // Returns true if a PDF file is attached to this document.
     public boolean hasPdf() {
         return pdfData != null && pdfData.length > 0;
     }
 
+    // Returns true if the document's expiry date has passed.
     public boolean isExpired() {
         return LocalDate.now().isAfter(expiryDate);
     }

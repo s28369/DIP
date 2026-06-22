@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 
 /**
- * Класс, представляющий документ, привязанный к грузовику
+ * JPA entity representing a document assigned to a truck (with optional attached PDF).
  */
 @Entity
 @Table(name = "document")
@@ -36,15 +36,13 @@ public class Document {
     @Column(name = "pdf_filename", length = 255)
     private String pdfFilename;
     
-    /**
-     * Перечисление, определяющее тип документа
-     */
+    // Document type with its Polish display label.
     public enum DocumentType {
-        INSURANCE("Страхование"),
-        TECHNICAL_INSPECTION("Технический осмотр"),
-        REGISTRATION("Регистрация"),
-        PERMISSION("Разрешение"),
-        OTHER("Прочее");
+        INSURANCE("Ubezpieczenie"),
+        TECHNICAL_INSPECTION("Przegląd techniczny"),
+        REGISTRATION("Rejestracja"),
+        PERMISSION("Zezwolenie"),
+        OTHER("Inne");
         
         private final String displayName;
         
@@ -52,15 +50,17 @@ public class Document {
             this.displayName = displayName;
         }
         
+        // Returns the human-readable label of this document type.
         public String getDisplayName() {
             return displayName;
         }
     }
 
-    
+    // Default constructor required by JPA.
     public Document() {
     }
     
+    // Convenience constructor without an id.
     public Document(Truck truck, DocumentType documentType, LocalDate expiryDate, String description) {
         this.truck = truck;
         this.documentType = documentType;
@@ -68,6 +68,7 @@ public class Document {
         this.description = description;
     }
     
+    // Convenience constructor including an explicit id.
     public Document(Long id, Truck truck, DocumentType documentType, LocalDate expiryDate, String description) {
         this.id = id;
         this.truck = truck;
@@ -133,16 +134,12 @@ public class Document {
         this.pdfFilename = pdfFilename;
     }
     
-    /**
-     * Проверяет, есть ли у документа прикреплённый файл PDF
-     */
+    // Returns true if a PDF file is attached to this document.
     public boolean hasPdf() {
         return pdfData != null && pdfData.length > 0;
     }
     
-    /**
-     * Проверяет, истёк ли срок действия документа
-     */
+    // Returns true if the document's expiry date has passed.
     public boolean isExpired() {
         return LocalDate.now().isAfter(expiryDate);
     }

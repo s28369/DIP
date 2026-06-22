@@ -10,15 +10,18 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Репозиторий для операций с документами водителей
+ * Repository for driver document operations.
  */
 @Repository
 public interface DriverDocumentRepository extends JpaRepository<DriverDocument, Long> {
 
+    // Returns all documents assigned to the given driver.
     List<DriverDocument> findByDriver(Driver driver);
 
+    // Returns driver documents whose expiry date is before the given date.
     List<DriverDocument> findByExpiryDateBefore(LocalDate date);
 
+    // Returns driver documents expiring within the given date range (inclusive).
     @Query("SELECT d FROM DriverDocument d WHERE d.expiryDate BETWEEN :startDate AND :endDate")
     List<DriverDocument> findExpiringDocuments(LocalDate startDate, LocalDate endDate);
 }

@@ -3,7 +3,7 @@ package org.example.fleetmanagement.model;
 import jakarta.persistence.*;
 
 /**
- * Класс, представляющий пользователя системы
+ * JPA entity representing a system user. The password is stored as a BCrypt hash.
  */
 @Entity
 @Table(name = "app_user")
@@ -26,19 +26,17 @@ public class User {
     @Column(name = "full_name", length = 100)
     private String fullName;
     
-    /**
-     * Перечисление, определяющее роль пользователя в системе
-     */
+    // Role of the user within the system.
     public enum UserRole {
         ADMINISTRATOR,
         LOGISTICIAN
     }
     
-
-    
+    // Default constructor required by JPA.
     public User() {
     }
     
+    // Convenience constructor with all fields.
     public User(Long id, String username, String password, UserRole role, String fullName) {
         this.id = id;
         this.username = username;

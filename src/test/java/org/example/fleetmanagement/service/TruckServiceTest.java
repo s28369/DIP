@@ -43,25 +43,25 @@ class TruckServiceTest {
     @Test
     void getAllTrucks_ShouldReturnListOfTrucks() {
         List<Truck> expectedTrucks = Arrays.asList(testTruck);
-        when(truckRepository.findAll()).thenReturn(expectedTrucks);
+        when(truckRepository.findAllWithDetails()).thenReturn(expectedTrucks);
 
         List<Truck> actualTrucks = truckService.getAllTrucks();
 
         assertNotNull(actualTrucks);
         assertEquals(1, actualTrucks.size());
         assertEquals(testTruck.getBrand(), actualTrucks.get(0).getBrand());
-        verify(truckRepository, times(1)).findAll();
+        verify(truckRepository, times(1)).findAllWithDetails();
     }
 
     @Test
     void getTruckById_WhenTruckExists_ShouldReturnTruck() {
-        when(truckRepository.findById(1L)).thenReturn(Optional.of(testTruck));
+        when(truckRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(testTruck));
 
         Optional<Truck> result = truckService.getTruckById(1L);
 
         assertTrue(result.isPresent());
         assertEquals(testTruck.getBrand(), result.get().getBrand());
-        verify(truckRepository, times(1)).findById(1L);
+        verify(truckRepository, times(1)).findByIdWithDetails(1L);
     }
 
     @Test

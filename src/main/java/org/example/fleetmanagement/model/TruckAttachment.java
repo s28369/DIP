@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * Класс, представляющий вложение PDF, привязанное к грузовику
+ * JPA entity representing a PDF/file attachment assigned to a truck.
  */
 @Entity
 @Table(name = "truck_attachment")
@@ -39,10 +39,12 @@ public class TruckAttachment {
     @JoinColumn(name = "truck_id", nullable = false)
     private Truck truck;
 
+    // Default constructor; records the upload timestamp.
     public TruckAttachment() {
         this.uploadedAt = LocalDateTime.now();
     }
     
+    // Convenience constructor that stores the file bytes and computes the size.
     public TruckAttachment(String filename, String description, byte[] fileData, Truck truck) {
         this.filename = filename;
         this.description = description;
@@ -114,6 +116,7 @@ public class TruckAttachment {
         this.truck = truck;
     }
     
+    // Returns the file size as a human-readable string (B/KB/MB).
     public String getFileSizeFormatted() {
         if (fileSize == null) return "0 B";
         if (fileSize < 1024) return fileSize + " B";

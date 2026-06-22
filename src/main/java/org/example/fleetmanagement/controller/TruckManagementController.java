@@ -27,7 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Контроллер управления представлением автопарка грузовиков
+ * Controller for the truck (tractor unit) fleet management view, including PDF attachments.
  */
 @Component
 public class TruckManagementController {
@@ -39,6 +39,7 @@ public class TruckManagementController {
     private VBox view;
     private TableView<Truck> tableView;
     
+    // Constructor injection of the truck service and attachment repository; builds the view.
     @Autowired
     public TruckManagementController(TruckService truckService, TruckAttachmentRepository attachmentRepository) {
         this.truckService = truckService;
@@ -46,43 +47,41 @@ public class TruckManagementController {
         initializeView();
     }
     
-    /**
-     * Инициализирует представление управления грузовиками
-     */
+    // Builds the table, search box and action buttons for the trucks screen.
     private void initializeView() {
         view = new VBox(10);
         view.setPadding(new Insets(15));
 
-        Label titleLabel = new Label("Тягачи");
+        Label titleLabel = new Label("Ciągniki");
         titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
 
-        Button addButton = new Button("Добавить грузовик");
+        Button addButton = new Button("Dodaj ciągnik");
         addButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
         addButton.setOnAction(e -> showAddTruckDialog());
 
-        Button editButton = new Button("Редактировать");
+        Button editButton = new Button("Edytuj");
         editButton.setOnAction(e -> showEditTruckDialog());
 
-        Button attachmentsButton = new Button("Вложения PDF");
+        Button attachmentsButton = new Button("Załączniki PDF");
         attachmentsButton.setStyle("-fx-background-color: #9b59b6; -fx-text-fill: white;");
         attachmentsButton.setOnAction(e -> showAttachmentsDialog());
 
-        Button deleteButton = new Button("Удалить грузовик");
+        Button deleteButton = new Button("Usuń ciągnik");
         deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
         deleteButton.setOnAction(e -> handleDeleteTruck());
 
-        Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        Button refreshButton = new Button("Odśwież");
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
 
         HBox buttonBox = new HBox(10, addButton, editButton, attachmentsButton, deleteButton, refreshButton);
 
         TextField searchField = new TextField();
-        searchField.setPromptText("Введите текст для поиска...");
+        searchField.setPromptText("Wpisz tekst do wyszukania...");
         searchField.setPrefWidth(250);
 
         ComboBox<String> searchParam = new ComboBox<>();
-        searchParam.getItems().addAll("Все", "Рег. номер", "Марка", "Страна", "Статус", "Местоположение");
-        searchParam.setValue("Все");
+        searchParam.getItems().addAll("Wszystko", "Nr rej.", "Marka", "Firma", "Status", "Lokalizacja");
+        searchParam.setValue("Wszystko");
 
         filteredList = new FilteredList<>(truckList, p -> true);
 
@@ -95,14 +94,14 @@ public class TruckManagementController {
             }
             String lower = text.trim().toLowerCase();
             filteredList.setPredicate(truck -> switch (param) {
-                case "Рег. номер" -> contains(truck.getRegistrationNumber(), lower);
-                case "Марка" -> contains(truck.getBrand(), lower);
-                case "Страна" -> contains(truck.getRegistrationCountry(), lower);
-                case "Статус" -> contains(truck.getStatus(), lower);
-                case "Местоположение" -> contains(truck.getCurrentLocation(), lower);
+                case "Nr rej." -> contains(truck.getRegistrationNumber(), lower);
+                case "Marka" -> contains(truck.getBrand(), lower);
+                case "Firma" -> contains(truck.getCompany(), lower);
+                case "Status" -> contains(truck.getStatus(), lower);
+                case "Lokalizacja" -> contains(truck.getCurrentLocation(), lower);
                 default -> contains(truck.getRegistrationNumber(), lower)
                         || contains(truck.getBrand(), lower)
-                        || contains(truck.getRegistrationCountry(), lower)
+                        || contains(truck.getCompany(), lower)
                         || contains(truck.getStatus(), lower)
                         || contains(truck.getCurrentLocation(), lower);
             });
@@ -110,33 +109,36 @@ public class TruckManagementController {
         searchField.textProperty().addListener((obs, o, n) -> applyFilter.run());
         searchParam.valueProperty().addListener((obs, o, n) -> applyFilter.run());
 
-        HBox searchBox = new HBox(10, new Label("Поиск:"), searchField, searchParam);
+        HBox searchBox = new HBox(10, new Label("Szukaj:"), searchField, searchParam);
         searchBox.setPadding(new Insets(0, 0, 5, 0));
 
         tableView = new TableView<>();
         tableView.setItems(filteredList);
 
-        TableColumn<Truck, String> registrationColumn = new TableColumn<>("Регистрационный номер");
+        TableColumn<Truck, String> registrationColumn = new TableColumn<>("Numer rejestracyjny");
         registrationColumn.setCellValueFactory(new PropertyValueFactory<>("registrationNumber"));
         registrationColumn.setPrefWidth(170);
 
-        TableColumn<Truck, String> brandColumn = new TableColumn<>("Марка");
+        TableColumn<Truck, String> brandColumn = new TableColumn<>("Marka");
         brandColumn.setCellValueFactory(new PropertyValueFactory<>("brand"));
         brandColumn.setPrefWidth(180);
 
-        TableColumn<Truck, String> countryColumn = new TableColumn<>("Страна регистрации");
-        countryColumn.setCellValueFactory(new PropertyValueFactory<>("registrationCountry"));
-        countryColumn.setPrefWidth(150);
+        TableColumn<Truck, String> companyColumn = new TableColumn<>("Firma");
+        companyColumn.setCellValueFactory(cellData -> {
+            String c = cellData.getValue().getCompany();
+            return new SimpleStringProperty(c != null ? c : "—");
+        });
+        companyColumn.setPrefWidth(120);
 
-        TableColumn<Truck, String> statusColumn = new TableColumn<>("Статус");
+        TableColumn<Truck, String> statusColumn = new TableColumn<>("Status");
         statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusColumn.setPrefWidth(120);
 
-        TableColumn<Truck, String> locationColumn = new TableColumn<>("Местоположение");
+        TableColumn<Truck, String> locationColumn = new TableColumn<>("Lokalizacja");
         locationColumn.setCellValueFactory(new PropertyValueFactory<>("currentLocation"));
         locationColumn.setPrefWidth(180);
 
-        tableView.getColumns().addAll(registrationColumn, brandColumn, countryColumn, statusColumn, locationColumn);
+        tableView.getColumns().addAll(registrationColumn, brandColumn, companyColumn, statusColumn, locationColumn);
 
         tableView.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -161,15 +163,17 @@ public class TruckManagementController {
     }
     
     /**
-     * Возвращает представление контроллера
+     * Zwraca widok kontrolera
      */
+    // Returns the root node of this view.
     public Parent getView() {
         return view;
     }
     
     /**
-     * Обновляет данные в таблице
+     * Odświeża dane w tabeli
      */
+    // Reloads all trucks into the table (on the FX thread).
     public void refreshData() {
         var data = truckService.getAllTrucks();
         if (javafx.application.Platform.isFxApplicationThread()) {
@@ -180,8 +184,9 @@ public class TruckManagementController {
     }
     
     /**
-     * Отображает диалог добавления нового грузовика
+     * Wyświetla okno dialogowe dodawania nowego ciągnika
      */
+    // Creates an editable combo box pre-filled with the given items.
     private ComboBox<String> createEditableComboBox(String... items) {
         ComboBox<String> combo = new ComboBox<>();
         combo.getItems().addAll(items);
@@ -190,37 +195,38 @@ public class TruckManagementController {
         return combo;
     }
 
+    // Shows the dialog for adding a new truck.
     private void showAddTruckDialog() {
         Dialog<Truck> dialog = new Dialog<>();
-        dialog.setTitle("Добавить грузовик");
-        dialog.setHeaderText("Введите данные нового грузовика");
+        dialog.setTitle("Dodaj ciągnik");
+        dialog.setHeaderText("Wprowadź dane nowego ciągnika");
 
-        ButtonType addButtonType = new ButtonType("Добавить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType addButtonType = new ButtonType("Dodaj", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
 
         TextField registrationField = new TextField();
-        registrationField.setPromptText("Рег. номер (напр. WW12345)");
+        registrationField.setPromptText("Nr rej. (np. WW12345)");
 
         TextField brandField = new TextField();
-        brandField.setPromptText("Марка (напр. Volvo FH16)");
+        brandField.setPromptText("Marka (np. Volvo FH16)");
 
-        ComboBox<String> countryCombo = createEditableComboBox(
-                "Польша", "Беларусь", "Чехия", "РФ");
+        ComboBox<String> companyCombo = createEditableComboBox(
+                Truck.COMPANY_MTG, Truck.COMPANY_APA, Truck.COMPANY_ABSOLUT);
 
         ComboBox<String> statusCombo = createEditableComboBox(
                 Truck.STATUS_AVAILABLE, Truck.STATUS_ON_TRIP, Truck.STATUS_MAINTENANCE);
         statusCombo.setValue(Truck.STATUS_AVAILABLE);
 
         TextField locationField = new TextField();
-        locationField.setPromptText("напр. Варшава, ул. Промышленная 15");
+        locationField.setPromptText("np. Warszawa, ul. Przemysłowa 15");
 
         VBox content = new VBox(10);
         content.getChildren().addAll(
-            new Label("Регистрационный номер:"), registrationField,
-            new Label("Марка:"), brandField,
-            new Label("Страна регистрации:"), countryCombo,
-            new Label("Статус:"), statusCombo,
-            new Label("Местоположение:"), locationField
+            new Label("Numer rejestracyjny:"), registrationField,
+            new Label("Marka:"), brandField,
+            new Label("Firma:"), companyCombo,
+            new Label("Status:"), statusCombo,
+            new Label("Lokalizacja:"), locationField
         );
         content.setPadding(new Insets(10));
 
@@ -230,12 +236,12 @@ public class TruckManagementController {
         final Button addBtn = (Button) dialog.getDialogPane().lookupButton(addButtonType);
         addBtn.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
             if (registrationField.getText().trim().isEmpty()) {
-                showAlert("Ошибка", "Регистрационный номер не может быть пустым", Alert.AlertType.ERROR);
+                showAlert("Błąd", "Numer rejestracyjny nie może być pusty", Alert.AlertType.ERROR);
                 event.consume();
                 return;
             }
             if (brandField.getText().trim().isEmpty()) {
-                showAlert("Ошибка", "Марка не может быть пустой", Alert.AlertType.ERROR);
+                showAlert("Błąd", "Marka nie może być pusta", Alert.AlertType.ERROR);
                 event.consume();
             }
         });
@@ -245,8 +251,8 @@ public class TruckManagementController {
                 Truck truck = new Truck();
                 truck.setRegistrationNumber(registrationField.getText().trim());
                 truck.setBrand(brandField.getText().trim());
-                String country = countryCombo.getEditor().getText();
-                truck.setRegistrationCountry(country != null ? country.trim() : "");
+                String company = companyCombo.getEditor().getText();
+                truck.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
                 String status = statusCombo.getEditor().getText();
                 truck.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Truck.STATUS_AVAILABLE);
                 truck.setCurrentLocation(locationField.getText().trim());
@@ -255,40 +261,35 @@ public class TruckManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(truck -> {
-            try {
-                truckService.addTruck(truck);
-                refreshData();
-                showAlert("Успех", "Грузовик добавлен", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось добавить грузовик: " + e.getMessage(),
-                    Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(truck -> runAsync(() -> {
+            truckService.addTruck(truck);
+            refreshData();
+        }, "Ciągnik dodany", "Nie udało się dodać ciągnika"));
     }
     
+    // Shows the dialog for editing the selected truck.
     private void showEditTruckDialog() {
         Truck selectedTruck = tableView.getSelectionModel().getSelectedItem();
 
         if (selectedTruck == null) {
-            showAlert("Ошибка", "Выберите грузовик для редактирования", Alert.AlertType.WARNING);
+            showAlert("Błąd", "Wybierz ciągnik do edycji", Alert.AlertType.WARNING);
             return;
         }
 
         Dialog<Truck> dialog = new Dialog<>();
-        dialog.setTitle("Редактировать грузовик");
-        dialog.setHeaderText("Грузовик: " + selectedTruck.getBrand() + " (" + selectedTruck.getRegistrationNumber() + ")");
+        dialog.setTitle("Edytuj ciągnik");
+        dialog.setHeaderText("Ciągnik: " + selectedTruck.getBrand() + " (" + selectedTruck.getRegistrationNumber() + ")");
 
-        ButtonType saveButtonType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType saveButtonType = new ButtonType("Zapisz", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
         TextField registrationField = new TextField(selectedTruck.getRegistrationNumber());
         TextField brandField = new TextField(selectedTruck.getBrand());
 
-        ComboBox<String> countryCombo = createEditableComboBox(
-                "Польша", "Беларусь", "Чехия", "РФ");
-        if (selectedTruck.getRegistrationCountry() != null) {
-            countryCombo.setValue(selectedTruck.getRegistrationCountry());
+        ComboBox<String> companyCombo = createEditableComboBox(
+                Truck.COMPANY_MTG, Truck.COMPANY_APA, Truck.COMPANY_ABSOLUT);
+        if (selectedTruck.getCompany() != null) {
+            companyCombo.setValue(selectedTruck.getCompany());
         }
 
         ComboBox<String> statusCombo = createEditableComboBox(
@@ -300,11 +301,11 @@ public class TruckManagementController {
 
         VBox content = new VBox(10);
         content.getChildren().addAll(
-            new Label("Регистрационный номер:"), registrationField,
-            new Label("Марка:"), brandField,
-            new Label("Страна регистрации:"), countryCombo,
-            new Label("Статус:"), statusCombo,
-            new Label("Местоположение:"), locationField
+            new Label("Numer rejestracyjny:"), registrationField,
+            new Label("Marka:"), brandField,
+            new Label("Firma:"), companyCombo,
+            new Label("Status:"), statusCombo,
+            new Label("Lokalizacja:"), locationField
         );
         content.setPadding(new Insets(10));
 
@@ -315,8 +316,8 @@ public class TruckManagementController {
             if (dialogButton == saveButtonType) {
                 selectedTruck.setRegistrationNumber(registrationField.getText().trim());
                 selectedTruck.setBrand(brandField.getText().trim());
-                String country = countryCombo.getEditor().getText();
-                selectedTruck.setRegistrationCountry(country != null ? country.trim() : "");
+                String company = companyCombo.getEditor().getText();
+                selectedTruck.setCompany(company != null && !company.trim().isEmpty() ? company.trim() : null);
                 String status = statusCombo.getEditor().getText();
                 selectedTruck.setStatus(status != null && !status.trim().isEmpty() ? status.trim() : Truck.STATUS_AVAILABLE);
                 selectedTruck.setCurrentLocation(locationField.getText().trim());
@@ -325,57 +326,49 @@ public class TruckManagementController {
             return null;
         });
 
-        dialog.showAndWait().ifPresent(truck -> {
-            try {
-                truckService.updateTruck(truck);
-                refreshData();
-                showAlert("Успех", "Данные грузовика обновлены", Alert.AlertType.INFORMATION);
-            } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось обновить грузовик: " + e.getMessage(),
-                    Alert.AlertType.ERROR);
-            }
-        });
+        dialog.showAndWait().ifPresent(truck -> runAsync(() -> {
+            truckService.updateTruck(truck);
+            refreshData();
+        }, "Dane ciągnika zaktualizowane", "Nie udało się zaktualizować ciągnika"));
     }
     
     /**
-     * Обрабатывает удаление грузовика
+     * Obsługuje usuwanie ciągnika
      */
+    // Deletes the selected truck after confirmation.
     private void handleDeleteTruck() {
         Truck selectedTruck = tableView.getSelectionModel().getSelectedItem();
         
         if (selectedTruck == null) {
-            showAlert("Ошибка", "Выберите грузовик для удаления", Alert.AlertType.WARNING);
+            showAlert("Błąd", "Wybierz ciągnik do usunięcia", Alert.AlertType.WARNING);
             return;
         }
         
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("Подтверждение");
-        confirmAlert.setHeaderText("Вы уверены, что хотите удалить этот грузовик?");
-        confirmAlert.setContentText("Марка: " + selectedTruck.getBrand() + 
-            "\nРег. номер: " + selectedTruck.getRegistrationNumber());
+        confirmAlert.setTitle("Potwierdzenie");
+        confirmAlert.setHeaderText("Czy na pewno chcesz usunąć ten ciągnik?");
+        confirmAlert.setContentText("Marka: " + selectedTruck.getBrand() + 
+            "\nNr rej.: " + selectedTruck.getRegistrationNumber());
         
         confirmAlert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
-                try {
+                runAsync(() -> {
                     truckService.deleteTruck(selectedTruck.getId());
                     refreshData();
-                    showAlert("Успех", "Грузовик удалён", Alert.AlertType.INFORMATION);
-                } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить грузовик: " + e.getMessage(), 
-                        Alert.AlertType.ERROR);
-                }
+                }, "Ciągnik usunięty", "Nie udało się usunąć ciągnika");
             }
         });
     }
     
     /**
-     * Отображает диалог управления вложениями PDF для грузовика
+     * Wyświetla okno dialogowe zarządzania załącznikami PDF dla ciągnika
      */
+    // Opens a dialog listing the truck's PDF attachments with add/edit/download/delete actions.
     private void showAttachmentsDialog() {
         Truck selectedTruck = tableView.getSelectionModel().getSelectedItem();
         
         if (selectedTruck == null) {
-            showAlert("Ошибка", "Выберите грузовик", Alert.AlertType.WARNING);
+            showAlert("Błąd", "Wybierz ciągnik", Alert.AlertType.WARNING);
             return;
         }
 
@@ -383,8 +376,8 @@ public class TruckManagementController {
         final Truck truck = selectedTruck;
         
         Dialog<Void> dialog = new Dialog<>();
-        dialog.setTitle("Вложения PDF");
-        dialog.setHeaderText("Грузовик: " + truck.getBrand() + " (" + truck.getRegistrationNumber() + ")");
+        dialog.setTitle("Załączniki PDF");
+        dialog.setHeaderText("Ciągnik: " + truck.getBrand() + " (" + truck.getRegistrationNumber() + ")");
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
         TableView<TruckAttachment> attachmentTable = new TableView<>();
@@ -396,20 +389,20 @@ public class TruckManagementController {
         idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
         idCol.setPrefWidth(50);
         
-        TableColumn<TruckAttachment, String> nameCol = new TableColumn<>("Имя файла");
+        TableColumn<TruckAttachment, String> nameCol = new TableColumn<>("Nazwa pliku");
         nameCol.setCellValueFactory(new PropertyValueFactory<>("filename"));
         nameCol.setPrefWidth(200);
         
-        TableColumn<TruckAttachment, String> descCol = new TableColumn<>("Описание");
+        TableColumn<TruckAttachment, String> descCol = new TableColumn<>("Opis");
         descCol.setCellValueFactory(new PropertyValueFactory<>("description"));
         descCol.setPrefWidth(150);
         
-        TableColumn<TruckAttachment, String> sizeCol = new TableColumn<>("Размер");
+        TableColumn<TruckAttachment, String> sizeCol = new TableColumn<>("Rozmiar");
         sizeCol.setCellValueFactory(cellData -> 
             new SimpleStringProperty(cellData.getValue().getFileSizeFormatted()));
         sizeCol.setPrefWidth(80);
         
-        TableColumn<TruckAttachment, String> dateCol = new TableColumn<>("Дата добавления");
+        TableColumn<TruckAttachment, String> dateCol = new TableColumn<>("Data dodania");
         dateCol.setCellValueFactory(cellData -> {
             if (cellData.getValue().getUploadedAt() != null) {
                 return new SimpleStringProperty(
@@ -420,14 +413,14 @@ public class TruckManagementController {
         });
         dateCol.setPrefWidth(120);
         
-        TableColumn<TruckAttachment, String> expCol = new TableColumn<>("Дата окончания");
+        TableColumn<TruckAttachment, String> expCol = new TableColumn<>("Data ważności");
         expCol.setCellValueFactory(cellData -> {
             LocalDate exp = cellData.getValue().getExpirationDate();
             return new SimpleStringProperty(exp != null ? exp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) : "—");
         });
         expCol.setPrefWidth(120);
 
-        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, sizeCol, dateCol, expCol);
+        attachmentTable.getColumns().addAll(idCol, nameCol, descCol, dateCol, expCol, sizeCol);
 
         attachmentTable.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -448,47 +441,47 @@ public class TruckManagementController {
             }
         });
 
-        Button addBtn = new Button("Добавить PDF");
+        Button addBtn = new Button("Dodaj PDF");
         addBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
         addBtn.setOnAction(e -> {
             addAttachmentToTruck(truck, attachmentList);
             refreshData();
         });
         
-        Button downloadBtn = new Button("Скачать PDF");
+        Button downloadBtn = new Button("Pobierz PDF");
         downloadBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
         downloadBtn.setOnAction(e -> {
             TruckAttachment selected = attachmentTable.getSelectionModel().getSelectedItem();
             if (selected != null) {
                 downloadAttachment(selected);
             } else {
-                showAlert("Ошибка", "Выберите вложение для скачивания", Alert.AlertType.WARNING);
+                showAlert("Błąd", "Wybierz załącznik do pobrania", Alert.AlertType.WARNING);
             }
         });
         
-        Button editDescBtn = new Button("Изменить описание");
+        Button editDescBtn = new Button("Edytuj opis");
         editDescBtn.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white;");
         editDescBtn.setOnAction(e -> {
             TruckAttachment selected = attachmentTable.getSelectionModel().getSelectedItem();
             if (selected != null) {
                 editAttachmentDescription(selected, attachmentList, truck);
             } else {
-                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+                showAlert("Błąd", "Wybierz załącznik", Alert.AlertType.WARNING);
             }
         });
 
-        Button expDateBtn = new Button("Дата окончания");
+        Button expDateBtn = new Button("Data ważności");
         expDateBtn.setStyle("-fx-background-color: #16a085; -fx-text-fill: white;");
         expDateBtn.setOnAction(e -> {
             TruckAttachment selected = attachmentTable.getSelectionModel().getSelectedItem();
             if (selected != null) {
                 editExpirationDate(selected, attachmentList, truck);
             } else {
-                showAlert("Ошибка", "Выберите вложение", Alert.AlertType.WARNING);
+                showAlert("Błąd", "Wybierz załącznik", Alert.AlertType.WARNING);
             }
         });
         
-        Button deleteBtn = new Button("Удалить вложение");
+        Button deleteBtn = new Button("Usuń załącznik");
         deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
         deleteBtn.setOnAction(e -> {
             TruckAttachment selected = attachmentTable.getSelectionModel().getSelectedItem();
@@ -496,7 +489,7 @@ public class TruckManagementController {
                 deleteAttachment(truck, selected, attachmentList);
                 refreshData();
             } else {
-                showAlert("Ошибка", "Выберите вложение для удаления", Alert.AlertType.WARNING);
+                showAlert("Błąd", "Wybierz załącznik do usunięcia", Alert.AlertType.WARNING);
             }
         });
         
@@ -505,7 +498,7 @@ public class TruckManagementController {
         
         VBox content = new VBox(10);
         content.getChildren().addAll(
-            new Label("Список вложений PDF:"),
+            new Label("Lista załączników PDF:"),
             attachmentTable,
             buttonBox
         );
@@ -519,13 +512,16 @@ public class TruckManagementController {
     }
     
     /**
-     * Добавляет новое вложение PDF к грузовику
+     * Dodaje nowy załącznik PDF do ciągnika
      */
+    // Lets the user pick a file and attaches it (with description/expiry) to the truck.
     private void addAttachmentToTruck(Truck truck, ObservableList<TruckAttachment> attachmentList) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Выберите файлы PDF");
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        fileChooser.setTitle("Wybierz pliki");
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("Wszystkie obsługiwane", "*.pdf", "*.jpg", "*.jpeg", "*.png"),
+            new FileChooser.ExtensionFilter("Pliki PDF", "*.pdf"),
+            new FileChooser.ExtensionFilter("Obrazy", "*.jpg", "*.jpeg", "*.png")
         );
         
         Stage stage = (Stage) view.getScene().getWindow();
@@ -541,20 +537,21 @@ public class TruckManagementController {
                     attachmentList.add(attachment);
                     added++;
                 } catch (IOException e) {
-                    showAlert("Ошибка", "Не удалось прочитать файл: " + file.getName() + "\n" + e.getMessage(), Alert.AlertType.ERROR);
+                    showAlert("Błąd", "Nie udało się odczytać pliku: " + file.getName() + "\n" + e.getMessage(), Alert.AlertType.ERROR);
                 }
             }
             if (added > 0) {
-                showAlert("Успех", "Добавлено файлов: " + added, Alert.AlertType.INFORMATION);
+                showAlert("Sukces", "Dodano plików: " + added, Alert.AlertType.INFORMATION);
             }
         }
     }
     
+    // Edits the description of a truck attachment.
     private void editAttachmentDescription(TruckAttachment attachment, ObservableList<TruckAttachment> attachmentList, Truck truck) {
         TextInputDialog dlg = new TextInputDialog(attachment.getDescription() != null ? attachment.getDescription() : "");
-        dlg.setTitle("Описание документа");
-        dlg.setHeaderText("Файл: " + attachment.getFilename());
-        dlg.setContentText("Описание:");
+        dlg.setTitle("Opis dokumentu");
+        dlg.setHeaderText("Plik: " + attachment.getFilename());
+        dlg.setContentText("Opis:");
         dlg.getEditor().setPrefWidth(350);
         
         dlg.showAndWait().ifPresent(text -> {
@@ -562,24 +559,25 @@ public class TruckManagementController {
                 attachment.setDescription(text.trim());
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.Set.of())));
             } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось сохранить описание: " + e.getMessage(), Alert.AlertType.ERROR);
+                showAlert("Błąd", "Nie udało się zapisać opisu: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         });
     }
     
+    // Edits the expiration date of a truck attachment.
     private void editExpirationDate(TruckAttachment attachment, ObservableList<TruckAttachment> attachmentList, Truck truck) {
         Dialog<LocalDate> dlg = new Dialog<>();
-        dlg.setTitle("Дата окончания документа");
-        dlg.setHeaderText("Файл: " + attachment.getFilename());
+        dlg.setTitle("Data ważności dokumentu");
+        dlg.setHeaderText("Plik: " + attachment.getFilename());
 
-        ButtonType saveType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
-        ButtonType clearType = new ButtonType("Убрать дату", ButtonBar.ButtonData.LEFT);
+        ButtonType saveType = new ButtonType("Zapisz", ButtonBar.ButtonData.OK_DONE);
+        ButtonType clearType = new ButtonType("Usuń datę", ButtonBar.ButtonData.LEFT);
         dlg.getDialogPane().getButtonTypes().addAll(saveType, clearType, ButtonType.CANCEL);
 
         DatePicker datePicker = new DatePicker(attachment.getExpirationDate());
-        VBox content = new VBox(10, new Label("Дата окончания:"), datePicker);
+        VBox content = new VBox(10, new Label("Data ważności:"), datePicker);
         content.setPadding(new Insets(10));
         dlg.getDialogPane().setContent(content);
 
@@ -594,63 +592,70 @@ public class TruckManagementController {
                 attachment.setExpirationDate(date == LocalDate.MIN ? null : date);
                 attachmentRepository.save(attachment);
                 attachmentList.setAll(
-                    truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.List.of()));
+                    new java.util.ArrayList<>(truckService.getTruckById(truck.getId()).map(Truck::getAttachments).orElse(java.util.Set.of())));
                 refreshData();
             } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось сохранить дату: " + e.getMessage(), Alert.AlertType.ERROR);
+                showAlert("Błąd", "Nie udało się zapisać daty: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         });
     }
 
+    // Saves the selected attachment's file to disk.
     private void downloadAttachment(TruckAttachment attachment) {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Сохранить файл PDF");
+        fileChooser.setTitle("Zapisz plik");
         fileChooser.setInitialFileName(attachment.getFilename());
-        fileChooser.getExtensionFilters().add(
-            new FileChooser.ExtensionFilter("Файлы PDF", "*.pdf")
+        String ext = getExtension(attachment.getFilename());
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter(ext.toUpperCase() + " pliki", "*." + ext),
+            new FileChooser.ExtensionFilter("Wszystkie pliki", "*.*")
         );
-        
+        fileChooser.setSelectedExtensionFilter(fileChooser.getExtensionFilters().get(0));
+
         Stage stage = (Stage) view.getScene().getWindow();
         File file = fileChooser.showSaveDialog(stage);
-        
+
         if (file != null) {
+            file = ensureExtension(file, ext);
             try {
                 byte[] data = attachmentRepository.findFileDataById(attachment.getId());
                 Files.write(file.toPath(), data);
-                showAlert("Успех", "Файл сохранён как:\n" + file.getAbsolutePath(), 
+                showAlert("Sukces", "Plik został zapisany jako:\n" + file.getAbsolutePath(), 
                     Alert.AlertType.INFORMATION);
             } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось сохранить файл: " + e.getMessage(), Alert.AlertType.ERROR);
+                showAlert("Błąd", "Nie udało się zapisać pliku: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         }
     }
     
     /**
-     * Удаляет вложение у грузовика
+     * Usuwa załącznik ciągnika
      */
+    // Deletes the selected attachment from the truck.
     private void deleteAttachment(Truck truck, TruckAttachment attachment, ObservableList<TruckAttachment> attachmentList) {
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("Подтверждение");
-        confirmAlert.setHeaderText("Вы уверены, что хотите удалить это вложение?");
-        confirmAlert.setContentText("Файл: " + attachment.getFilename());
+        confirmAlert.setTitle("Potwierdzenie");
+        confirmAlert.setHeaderText("Czy na pewno chcesz usunąć ten załącznik?");
+        confirmAlert.setContentText("Plik: " + attachment.getFilename());
         
         confirmAlert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 try {
                     attachmentRepository.delete(attachment);
                     attachmentList.remove(attachment);
-                    showAlert("Успех", "Вложение удалено", Alert.AlertType.INFORMATION);
+                    showAlert("Sukces", "Załącznik usunięty", Alert.AlertType.INFORMATION);
                 } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить вложение: " + e.getMessage(), Alert.AlertType.ERROR);
+                    showAlert("Błąd", "Nie udało się usunąć załącznika: " + e.getMessage(), Alert.AlertType.ERROR);
                 }
             }
         });
     }
     
     /**
-     * Отображает диалоговое окно с сообщением
+     * Wyświetla okno dialogowe z komunikatem
      */
-    private static String getExpirationStyle(java.util.List<TruckAttachment> attachments) {
+    // Returns a row style highlighting trucks whose documents are expired or expiring soon.
+    private static String getExpirationStyle(java.util.Collection<TruckAttachment> attachments) {
         if (attachments == null || attachments.isEmpty()) return "";
         long minDays = Long.MAX_VALUE;
         for (TruckAttachment a : attachments) {
@@ -665,10 +670,40 @@ public class TruckManagementController {
         return "";
     }
 
+    // Runs a blocking task on a background thread and shows a success/error alert on the FX thread.
+    private void runAsync(Runnable task, String successMsg, String errorPrefix) {
+        Thread.ofVirtual().start(() -> {
+            try {
+                task.run();
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Sukces", successMsg, Alert.AlertType.INFORMATION));
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() ->
+                    showAlert("Błąd", errorPrefix + ": " + e.getMessage(), Alert.AlertType.ERROR));
+            }
+        });
+    }
+
+    // Case-insensitive substring check used by the search filter.
     private static boolean contains(String value, String search) {
         return value != null && value.toLowerCase().contains(search);
     }
 
+    // Returns the lowercase file extension, defaulting to "pdf" when none is present.
+    private static String getExtension(String filename) {
+        if (filename == null || !filename.contains(".")) return "pdf";
+        return filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+    }
+
+    // Ensures the saved file ends with the expected extension.
+    private static java.io.File ensureExtension(java.io.File file, String ext) {
+        String name = file.getName();
+        if (name.contains(".") && name.toLowerCase().endsWith("." + ext.toLowerCase())) return file;
+        if (!name.contains(".")) return new java.io.File(file.getParent(), name + "." + ext);
+        return file;
+    }
+
+    // Shows a simple modal alert dialog with the given title and message.
     private void showAlert(String title, String content, Alert.AlertType type) {
         Alert alert = new Alert(type);
         alert.setTitle(title);

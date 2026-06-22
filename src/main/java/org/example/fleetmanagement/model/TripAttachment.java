@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * Класс, представляющий вложение PDF, привязанное к рейсу
+ * JPA entity representing a PDF/file attachment assigned to a trip.
  */
 @Entity
 @Table(name = "trip_attachment")
@@ -39,10 +39,12 @@ public class TripAttachment {
     @JoinColumn(name = "trip_id", nullable = false)
     private Trip trip;
 
+    // Default constructor; records the upload timestamp.
     public TripAttachment() {
         this.uploadedAt = LocalDateTime.now();
     }
     
+    // Convenience constructor that stores the file bytes and computes the size.
     public TripAttachment(String filename, String description, byte[] fileData, Trip trip) {
         this.filename = filename;
         this.description = description;
@@ -114,6 +116,7 @@ public class TripAttachment {
         this.trip = trip;
     }
     
+    // Returns the file size as a human-readable string (B/KB/MB).
     public String getFileSizeFormatted() {
         if (fileSize == null) return "0 B";
         if (fileSize < 1024) return fileSize + " B";

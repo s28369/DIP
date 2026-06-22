@@ -2,9 +2,12 @@ package org.example.fleetmanagement.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
+/**
+ * JPA entity representing a trip (transport route) with its truck, trailer, driver and customer.
+ */
 @Entity
 @Table(name = "trip")
 public class Trip {
@@ -22,7 +25,7 @@ public class Trip {
     private Trailer trailer;
     
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "driver_id", nullable = false)
+    @JoinColumn(name = "driver_id")
     private Driver driver;
     
     @ManyToOne(fetch = FetchType.EAGER)
@@ -54,11 +57,11 @@ public class Trip {
     @Column(name = "notes", length = 1000)
     private String notes;
     
-    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TripAttachment> attachments = new ArrayList<>();
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TripAttachment> attachments = new HashSet<>();
     
-    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<TripNote> tripNotes = new ArrayList<>();
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<TripNote> tripNotes = new HashSet<>();
     
     public enum TripStatus {
         PLANNED,
@@ -67,10 +70,12 @@ public class Trip {
         CANCELLED
     }
     
+    // Default constructor; initializes the start time to now.
     public Trip() {
         this.startTime = LocalDateTime.now();
     }
     
+    // Convenience constructor for a planned trip with the core fields.
     public Trip(Truck truck, Driver driver, String origin, String destination) {
         this.truck = truck;
         this.driver = driver;
@@ -119,30 +124,35 @@ public class Trip {
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
     
+    // Returns a human-readable "origin → destination" route label.
     public String getRouteDescription() {
         return origin + " → " + destination;
     }
     
-    public List<TripAttachment> getAttachments() { return attachments; }
-    public void setAttachments(List<TripAttachment> attachments) { this.attachments = attachments; }
+    public Set<TripAttachment> getAttachments() { return attachments; }
+    public void setAttachments(Set<TripAttachment> attachments) { this.attachments = attachments; }
     
+    // Adds an attachment and sets its back-reference to this trip.
     public void addAttachment(TripAttachment attachment) {
         attachments.add(attachment);
         attachment.setTrip(this);
     }
     
+    // Removes an attachment and clears its back-reference.
     public void removeAttachment(TripAttachment attachment) {
         attachments.remove(attachment);
         attachment.setTrip(null);
     }
     
+    // Returns the number of attachments on this trip.
     public int getAttachmentCount() {
         return attachments != null ? attachments.size() : 0;
     }
     
-    public List<TripNote> getTripNotes() { return tripNotes; }
-    public void setTripNotes(List<TripNote> tripNotes) { this.tripNotes = tripNotes; }
+    public Set<TripNote> getTripNotes() { return tripNotes; }
+    public void setTripNotes(Set<TripNote> tripNotes) { this.tripNotes = tripNotes; }
     
+    // Returns the number of notes on this trip.
     public int getNoteCount() {
         return tripNotes != null ? tripNotes.size() : 0;
     }

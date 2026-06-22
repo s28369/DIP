@@ -15,7 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Контроллер управления панелью администратора — пользователи
+ * Admin-panel controller for managing application users.
  */
 @Component
 public class UserManagementController {
@@ -26,6 +26,7 @@ public class UserManagementController {
     private VBox view;
     private TableView<User> tableView;
     
+    // Constructor injection of the user and authentication services; builds the view.
     @Autowired
     public UserManagementController(UserService userService, AuthenticationService authenticationService) {
         this.userService = userService;
@@ -33,32 +34,30 @@ public class UserManagementController {
         initializeView();
     }
     
-    /**
-     * Инициализирует представление управления пользователями
-     */
+    // Builds the table and action buttons for the user-management screen.
     private void initializeView() {
         view = new VBox(10);
         view.setPadding(new Insets(15));
 
-        Label titleLabel = new Label("Панель администратора — Управление пользователями");
+        Label titleLabel = new Label("Panel administratora — Zarządzanie użytkownikami");
         titleLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #c0392b;");
 
-        Label infoLabel = new Label("Доступ только для администраторов");
+        Label infoLabel = new Label("Dostęp tylko dla administratorów");
         infoLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #7f8c8d;");
 
-        Button addButton = new Button("Добавить пользователя");
+        Button addButton = new Button("Dodaj użytkownika");
         addButton.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white;");
         addButton.setOnAction(e -> showAddUserDialog());
         
-        Button editButton = new Button("Редактировать пользователя");
+        Button editButton = new Button("Edytuj użytkownika");
         editButton.setOnAction(e -> showEditUserDialog());
         
-        Button deleteButton = new Button("Удалить пользователя");
+        Button deleteButton = new Button("Usuń użytkownika");
         deleteButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white;");
         deleteButton.setOnAction(e -> handleDeleteUser());
         
-        Button refreshButton = new Button("Обновить");
-        refreshButton.setOnAction(e -> refreshData());
+        Button refreshButton = new Button("Odśwież");
+        refreshButton.setOnAction(e -> { if (MainController.getInstance() != null) MainController.getInstance().invalidateCache(); refreshData(); });
         
         HBox buttonBox = new HBox(10, addButton, editButton, deleteButton, refreshButton);
 
@@ -69,19 +68,19 @@ public class UserManagementController {
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
         idColumn.setPrefWidth(50);
         
-        TableColumn<User, String> usernameColumn = new TableColumn<>("Логин");
+        TableColumn<User, String> usernameColumn = new TableColumn<>("Nazwa użytkownika");
         usernameColumn.setCellValueFactory(new PropertyValueFactory<>("username"));
         usernameColumn.setPrefWidth(150);
         
-        TableColumn<User, String> fullNameColumn = new TableColumn<>("ФИО");
+        TableColumn<User, String> fullNameColumn = new TableColumn<>("Imię i nazwisko");
         fullNameColumn.setCellValueFactory(new PropertyValueFactory<>("fullName"));
         fullNameColumn.setPrefWidth(200);
         
-        TableColumn<User, User.UserRole> roleColumn = new TableColumn<>("Роль");
+        TableColumn<User, User.UserRole> roleColumn = new TableColumn<>("Rola");
         roleColumn.setCellValueFactory(new PropertyValueFactory<>("role"));
         roleColumn.setPrefWidth(150);
 
-        TableColumn<User, String> passwordColumn = new TableColumn<>("Пароль");
+        TableColumn<User, String> passwordColumn = new TableColumn<>("Hasło");
         passwordColumn.setCellValueFactory(cellData -> 
             new javafx.beans.property.SimpleStringProperty("********"));
         passwordColumn.setPrefWidth(100);
@@ -92,16 +91,12 @@ public class UserManagementController {
         VBox.setVgrow(tableView, javafx.scene.layout.Priority.ALWAYS);
     }
     
-    /**
-     * Возвращает представление контроллера
-     */
+    // Returns the root node of this view.
     public Parent getView() {
         return view;
     }
     
-    /**
-     * Обновляет данные в таблице
-     */
+    // Reloads the user list into the table (on the FX thread).
     public void refreshData() {
         var data = userService.getAllUsers();
         if (javafx.application.Platform.isFxApplicationThread()) {
@@ -111,28 +106,26 @@ public class UserManagementController {
         }
     }
     
-    /**
-     * Отображает диалог добавления нового пользователя
-     */
+    // Shows the dialog for creating a new user, with input validation.
     private void showAddUserDialog() {
         Dialog<User> dialog = new Dialog<>();
-        dialog.setTitle("Добавить пользователя");
-        dialog.setHeaderText("Введите данные нового пользователя");
+        dialog.setTitle("Dodaj użytkownika");
+        dialog.setHeaderText("Wprowadź dane nowego użytkownika");
         
-        ButtonType addButtonType = new ButtonType("Добавить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType addButtonType = new ButtonType("Dodaj", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
 
         TextField usernameField = new TextField();
-        usernameField.setPromptText("Логин (напр. ivan.petrov)");
+        usernameField.setPromptText("Nazwa użytkownika (np. jan.kowalski)");
         
         PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText("Пароль");
+        passwordField.setPromptText("Hasło");
         
         PasswordField confirmPasswordField = new PasswordField();
-        confirmPasswordField.setPromptText("Подтвердите пароль");
+        confirmPasswordField.setPromptText("Potwierdź hasło");
         
         TextField fullNameField = new TextField();
-        fullNameField.setPromptText("ФИО (напр. Иван Петров)");
+        fullNameField.setPromptText("Imię i nazwisko (np. Jan Kowalski)");
         
         ComboBox<User.UserRole> roleComboBox = new ComboBox<>();
         roleComboBox.getItems().addAll(User.UserRole.values());
@@ -140,11 +133,11 @@ public class UserManagementController {
         
         VBox content = new VBox(10);
         content.getChildren().addAll(
-            new Label("Логин:"), usernameField,
-            new Label("Пароль:"), passwordField,
-            new Label("Подтвердите пароль:"), confirmPasswordField,
-            new Label("ФИО:"), fullNameField,
-            new Label("Роль:"), roleComboBox
+            new Label("Nazwa użytkownika:"), usernameField,
+            new Label("Hasło:"), passwordField,
+            new Label("Potwierdź hasło:"), confirmPasswordField,
+            new Label("Imię i nazwisko:"), fullNameField,
+            new Label("Rola:"), roleComboBox
         );
         content.setPadding(new Insets(10));
         
@@ -154,22 +147,22 @@ public class UserManagementController {
         final Button addBtn = (Button) dialog.getDialogPane().lookupButton(addButtonType);
         addBtn.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
             if (usernameField.getText().trim().isEmpty()) {
-                showAlert("Ошибка", "Логин не может быть пустым", Alert.AlertType.ERROR);
+                showAlert("Błąd", "Nazwa użytkownika nie może być pusta", Alert.AlertType.ERROR);
                 event.consume();
                 return;
             }
             if (passwordField.getText().isEmpty()) {
-                showAlert("Ошибка", "Пароль не может быть пустым", Alert.AlertType.ERROR);
+                showAlert("Błąd", "Hasło nie może być puste", Alert.AlertType.ERROR);
                 event.consume();
                 return;
             }
             if (!passwordField.getText().equals(confirmPasswordField.getText())) {
-                showAlert("Ошибка", "Пароли не совпадают", Alert.AlertType.ERROR);
+                showAlert("Błąd", "Hasła nie są zgodne", Alert.AlertType.ERROR);
                 event.consume();
                 return;
             }
             if (fullNameField.getText().trim().isEmpty()) {
-                showAlert("Ошибка", "ФИО не может быть пустым", Alert.AlertType.ERROR);
+                showAlert("Błąd", "Imię i nazwisko nie może być puste", Alert.AlertType.ERROR);
                 event.consume();
             }
         });
@@ -190,37 +183,35 @@ public class UserManagementController {
             try {
                 userService.addUser(user);
                 refreshData();
-                showAlert("Успех", "Пользователь " + user.getUsername() + " добавлен", 
+                showAlert("Sukces", "Użytkownik " + user.getUsername() + " został dodany", 
                     Alert.AlertType.INFORMATION);
             } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось добавить пользователя: " + e.getMessage(), 
+                showAlert("Błąd", "Nie udało się dodać użytkownika: " + e.getMessage(), 
                     Alert.AlertType.ERROR);
             }
         });
     }
     
-    /**
-     * Отображает диалог редактирования пользователя
-     */
+    // Shows the dialog for editing the selected user (username is read-only, password optional).
     private void showEditUserDialog() {
         User selectedUser = tableView.getSelectionModel().getSelectedItem();
         
         if (selectedUser == null) {
-            showAlert("Ошибка", "Выберите пользователя для редактирования", Alert.AlertType.WARNING);
+            showAlert("Błąd", "Wybierz użytkownika do edycji", Alert.AlertType.WARNING);
             return;
         }
         
         Dialog<User> dialog = new Dialog<>();
-        dialog.setTitle("Редактировать пользователя");
-        dialog.setHeaderText("Редактирование пользователя: " + selectedUser.getUsername());
+        dialog.setTitle("Edytuj użytkownika");
+        dialog.setHeaderText("Edycja użytkownika: " + selectedUser.getUsername());
         
-        ButtonType saveButtonType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType saveButtonType = new ButtonType("Zapisz", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
         
         TextField fullNameField = new TextField(selectedUser.getFullName());
         
         PasswordField newPasswordField = new PasswordField();
-        newPasswordField.setPromptText("Новый пароль (оставьте пустым, чтобы не менять)");
+        newPasswordField.setPromptText("Nowe hasło (pozostaw puste, aby nie zmieniać)");
         
         ComboBox<User.UserRole> roleComboBox = new ComboBox<>();
         roleComboBox.getItems().addAll(User.UserRole.values());
@@ -229,18 +220,18 @@ public class UserManagementController {
 
         Label warningLabel = new Label();
         if (selectedUser.getId().equals(authenticationService.getCurrentUser().getId())) {
-            warningLabel.setText("⚠ Вы редактируете свою учётную запись!");
+            warningLabel.setText("⚠ Edytujesz swoje własne konto!");
             warningLabel.setStyle("-fx-text-fill: #e67e22; -fx-font-weight: bold;");
         }
         
         VBox content = new VBox(10);
         content.getChildren().addAll(
             warningLabel,
-            new Label("Логин (нельзя изменить):"), 
+            new Label("Nazwa użytkownika (nie można zmienić):"), 
             new Label(selectedUser.getUsername()),
-            new Label("ФИО:"), fullNameField,
-            new Label("Новый пароль:"), newPasswordField,
-            new Label("Роль:"), roleComboBox
+            new Label("Imię i nazwisko:"), fullNameField,
+            new Label("Nowe hasło:"), newPasswordField,
+            new Label("Rola:"), roleComboBox
         );
         content.setPadding(new Insets(10));
         
@@ -263,56 +254,52 @@ public class UserManagementController {
             try {
                 userService.updateUser(user);
                 refreshData();
-                showAlert("Успех", "Данные пользователя обновлены", 
+                showAlert("Sukces", "Dane użytkownika zostały zaktualizowane", 
                     Alert.AlertType.INFORMATION);
             } catch (Exception e) {
-                showAlert("Ошибка", "Не удалось обновить пользователя: " + e.getMessage(), 
+                showAlert("Błąd", "Nie udało się zaktualizować użytkownika: " + e.getMessage(), 
                     Alert.AlertType.ERROR);
             }
         });
     }
     
-    /**
-     * Обрабатывает удаление пользователя
-     */
+    // Deletes the selected user after confirmation (cannot delete your own account).
     private void handleDeleteUser() {
         User selectedUser = tableView.getSelectionModel().getSelectedItem();
         
         if (selectedUser == null) {
-            showAlert("Ошибка", "Выберите пользователя для удаления", Alert.AlertType.WARNING);
+            showAlert("Błąd", "Wybierz użytkownika do usunięcia", Alert.AlertType.WARNING);
             return;
         }
         
 
         if (selectedUser.getId().equals(authenticationService.getCurrentUser().getId())) {
-            showAlert("Ошибка", "Вы не можете удалить свою учётную запись!", Alert.AlertType.ERROR);
+            showAlert("Błąd", "Nie możesz usunąć swojego własnego konta!", Alert.AlertType.ERROR);
             return;
         }
         
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("Подтверждение");
-        confirmAlert.setHeaderText("Вы уверены, что хотите удалить этого пользователя?");
-        confirmAlert.setContentText("Логин: " + selectedUser.getUsername() + 
-            "\nФИО: " + selectedUser.getFullName() +
-            "\nРоль: " + selectedUser.getRole());
+        confirmAlert.setTitle("Potwierdzenie");
+        confirmAlert.setHeaderText("Czy na pewno chcesz usunąć tego użytkownika?");
+        confirmAlert.setContentText("Nazwa użytkownika: " + selectedUser.getUsername() + 
+            "\nImię i nazwisko: " + selectedUser.getFullName() +
+            "\nRola: " + selectedUser.getRole());
         
         confirmAlert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 try {
                     userService.deleteUser(selectedUser.getId());
                     refreshData();
-                    showAlert("Успех", "Пользователь удалён", Alert.AlertType.INFORMATION);
+                    showAlert("Sukces", "Użytkownik został usunięty", Alert.AlertType.INFORMATION);
                 } catch (Exception e) {
-                    showAlert("Ошибка", "Не удалось удалить пользователя: " + e.getMessage(), 
+                    showAlert("Błąd", "Nie udało się usunąć użytkownika: " + e.getMessage(), 
                         Alert.AlertType.ERROR);
                 }
             }
         });
     }
     
-    /**
-     * Отображает диалоговое окно с сообщением
-     */
+    // Shows a simple modal alert dialog with the given title and message.
     private void showAlert(String title, String content, Alert.AlertType type) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
